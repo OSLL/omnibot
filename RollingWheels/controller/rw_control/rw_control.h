@@ -1,7 +1,18 @@
 /****************************************************/
 /* String table (local strings)                     */
 /****************************************************/
-#define STRING_HELLO "Rolling Wheels Ard. ver:0.026.1"
+#define STRING_HELLO "Rolling Wheels Ard. ver:0.027 (delta)"
+
+/****************************************************/
+/* Error codes                                      */
+/****************************************************/
+typedef enum commandEnum {
+    COMMAND_DRIVE = 0,
+    COMMAND_MOVE,
+    COMMAND_DELTA,
+    COMMAND_ROTATE,
+    COMMAND_MAX,
+} commandEnum;
 
 /****************************************************/
 /* Calibration                                      */
@@ -38,12 +49,13 @@ static const unsigned int soundPowerPin = 13;
 //static const unsigned int soundGroundPin = A2;
 static const unsigned int soundEchoPin = 12;
 static const unsigned int soundTriggerPin = 11;
+static const unsigned int testLoadPin = 10;
 
 /****************************************************/
 /* Limits                                           */
 /****************************************************/
 const int MAX_STREAM_LENGTH = 255;
-const int COMMAND_BUF_LENGTH = 30;
+const int COMMAND_BUF_LENGTH = 20;
 
 /****************************************************/
 /* Function declarations                            */
@@ -54,12 +66,16 @@ Ret_Status parceCommand(char* const buf);
 Ret_Status parceParameters ( char *head, int par_num );
 Ret_Status queueCommand (void);
 Ret_Status validateDriveParameters (void);
-Ret_Status processMoveParameters (void);
-Ret_Status processDeltaParameters (void);
-Ret_Status processRotateParameters (void);
+Ret_Status validateMoveParameters (void);
+Ret_Status validateDeltaParameters (void);
+Ret_Status validateRotateParameters (void);
+void processMoveParameters ( moveType* mv );
+void processDeltaParameters ( moveType* mv );
+void processRotateParameters (void);
 Ret_Status processModeParameters (void);
 Ret_Status processEchoParameters (void);
 float calibration(float power, calibrationType cal);
+void commandPrepare(void);
 void statusDecode(Ret_Status ret);
 void commandDrive(void);
 void completeDrive(void);

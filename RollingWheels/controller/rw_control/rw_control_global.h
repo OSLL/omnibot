@@ -4,6 +4,7 @@
 typedef enum Ret_Status {
     RET_SUCCESS = 0,
     RET_NO_COMMAND,
+    RET_NO_INFINITE_DELTA,
     RET_WARN_STATUS_START = 10,
     RET_WARN_MAX_POWER_REACHED,
     RET_WARN_MIN_POWER,
@@ -23,6 +24,8 @@ typedef enum Ret_Status {
     RET_ERR_PARAM_VALUE_DISTANCE,
     RET_ERR_ECHO_REPEAT,
     RET_ERR_PARAM_VALUE_MAX,
+    RET_ERR_PARAM_VALUE_REPEAT,
+    RET_ERR_SYSTEM_CRITICAL,
     RET_ERR_UNKNOWN,
     RET_ERR_MAX_NUMBER,
 } Ret_Status;
@@ -36,6 +39,14 @@ typedef struct moveType {
     int course;
     int curve;
 } moveType;
+
+typedef struct deltaType {
+    int distance;
+    int power;
+    int course;
+    int curve;
+    int repeat;
+} deltaType;
 
 typedef moveType lastEvType;
 
@@ -70,7 +81,6 @@ typedef struct echoEvType {
 } echoEvType;
 
 typedef struct readyEvType {
-    int time;
     int queue;
 } readyEvType;
 
@@ -78,8 +88,10 @@ typedef struct readyEvType {
 typedef union paramType {
   struct{
     int params[5];
+    unsigned char command;
   };
   moveType m;
+  deltaType md;
   lastEvType le;
   driveType d;
   driveEvType de;
@@ -111,13 +123,13 @@ static const char KeySTOP[] = "STOP";
 static const char KeySTATUS[] = "STATUS";
 static const char KeyHELLO[] = "HELLO";
 static const char KeyECHO[] = "ECHO";
+static const char KeyMODE[] = "MODE";
 static const char KeyEMPTY[] = "";
 static const char KeyDELIMITER = ',';
 static const char KeyEOL1 = ';';
 static const char KeyEOL2 = 0x0D; // CR
 static const char KeyEOL3 = 0x0A; // LF
 static const char KeyREADY[] = "READY";
-static const char KeyMODE[] = "MODE";
 static const char KeyERROR[] = "ERROR";
 static const char KeyWARN[] = "WARN";
 static const char KeyLAST[] = "LAST";
@@ -128,7 +140,7 @@ static const char KeyLAST[] = "LAST";
 static const int MAX_COMMAND_TIME = 30000;
 static const int MAX_COMMAND_POWER = 255;
 static const int MAX_WAY_CURVE = 100; // 1000/cm
-static const int MAX_COMMAND_DISTANCE = 500; // cm
+static const int MAX_COMMAND_DISTANCE = 500; // cm; MAX_COMMAND_DISTANCE shall be less than INFINITE_COMMAND/2
 static const int INFINITE_COMMAND = 30000;
 static const int MAX_COMMAND_COURSE = 360; // degrees
 static const int MAX_ECHO_RANGE_CM = 500;
@@ -154,7 +166,9 @@ static const int MIN_ECHO_REPEAT = 50; // mS
 #define STRING_ERROR12 "Wrong Distance Value"
 #define STRING_ERROR13 "Too small echo repeat time"
 #define STRING_ERROR14 "Too large parameter value"
-#define STRING_ERROR15 "Unknown Error"
+#define STRING_ERROR15 "Negative Repeat Value"
+#define STRING_ERROR16 "Critical System Error"
+#define STRING_ERROR17 "Unknown Error"
 
 #define MAX_STRING_LENGTH 63
 

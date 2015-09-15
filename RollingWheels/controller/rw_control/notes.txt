@@ -1,3 +1,10 @@
-ver.26 is last version where queue contains motor parameters.
-Then we switched to put initial commands to queue.
-One sound detector supported.
+ver.27:
+- Queue keeps initial high level commands instead of motor power starting this version.
+- Infinite DELTA command execution supported.
+- Sanity test command sequence added.
+- Test movement initizted by connecting pin10 to ground using 1k resistor during reset.
+
+ver.26:
+- last version where queue contains motor parameters.
+- then we switched to put initial commands to queue.
+- one sound detector supported.
