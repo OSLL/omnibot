@@ -8,49 +8,28 @@
 const int DEBUG = 0;
 
 /****************************************************/
-/* String table                                     */
+/* String tables                                    */
 /****************************************************/
-const char String_Hello[] PROGMEM = STRING_HELLO;
-const char String_Warn1[] PROGMEM = STRING_WARN1;
-const char String_Warn2[] PROGMEM = STRING_WARN2;
-const char String_Warn3[] PROGMEM = STRING_WARN3;
-const char String_Error1[] PROGMEM = STRING_ERROR1;
-const char String_Error2[] PROGMEM = STRING_ERROR2;
-const char String_Error3[] PROGMEM = STRING_ERROR3;
-const char String_Error4[] PROGMEM = STRING_ERROR4;
-const char String_Error5[] PROGMEM = STRING_ERROR5;
-const char String_Error6[] PROGMEM = STRING_ERROR6;
-const char String_Error7[] PROGMEM = STRING_ERROR7;
-const char String_Error8[] PROGMEM = STRING_ERROR8;
-const char String_Error9[] PROGMEM = STRING_ERROR9;
-const char String_Error10[] PROGMEM = STRING_ERROR10;
-const char String_Error11[] PROGMEM = STRING_ERROR11;
-const char String_Error12[] PROGMEM = STRING_ERROR12;
-const char String_Error13[] PROGMEM = STRING_ERROR13;
-const char String_Error14[] PROGMEM = STRING_ERROR14;
-const char String_Error15[] PROGMEM = STRING_ERROR15;
-const char String_Error16[] PROGMEM = STRING_ERROR16;
-const char String_Error17[] PROGMEM = STRING_ERROR17;
-const char* const string_table_local[] PROGMEM = {String_Hello};
-const char* const string_table_warn[] PROGMEM = {String_Warn1, String_Warn2, String_Warn3};
-const char* const string_table_error[] PROGMEM = {String_Error1, String_Error2, String_Error3, String_Error4, String_Error5, String_Error6, String_Error7, String_Error8,
-                                                  String_Error9, String_Error10, String_Error11, String_Error12, String_Error13, String_Error14, String_Error15, String_Error16, String_Error17};
+STRING_TABLE_GLOBAL
+
+const char String_Hello[] STRING_MEM_MODE = "Rolling Wheels Ard. ver:0.028 (cm/S for MOVE)";
+const char* const string_table_local[] STRING_MEM_MODE = {String_Hello};
 
 /****************************************************/
 /* Test load                                        */
 /****************************************************/
 const char Test_Load1[] PROGMEM = "DRIVE,600,150,150,-150,-150";
 const char Test_Load2[] PROGMEM = "DRIVE,600,150,0,-150,0";
-const char Test_Load3[] PROGMEM = "MOVE,30,150,135,0";
+const char Test_Load3[] PROGMEM = "MOVE,30,59,135,0";
 const char Test_Load4[] PROGMEM = "DELTA,0,0,45,0,0";
 const char Test_Load5[] PROGMEM = "ROTATE,800,120";
 const char Test_Load6[] PROGMEM = "DRIVE,450,200,200,-200,-200";
 const char Test_Load7[] PROGMEM = "DRIVE,450,200,0,-200,0";
-const char Test_Load8[] PROGMEM = "MOVE,30,200,135,0";
+const char Test_Load8[] PROGMEM = "MOVE,30,78,135,0";
 const char Test_Load9[] PROGMEM = "DELTA,0,0,45,0,0";
-const char Test_Load10[] PROGMEM = "MOVE,200,150,45,-30";
+const char Test_Load10[] PROGMEM = "MOVE,200,59,45,-30";
 const char Test_Load11[] PROGMEM = "DELTA,-400,0,45,0,0";
-const char Test_Load12[] PROGMEM = "MOVE,3,150,45,0";
+const char Test_Load12[] PROGMEM = "MOVE,3,59,45,0";
 const char Test_Load13[] PROGMEM = "DELTA,0,0,10,0,72";
 
 const char* const test_table[] PROGMEM = {Test_Load1, Test_Load2, Test_Load3, Test_Load4, Test_Load5, Test_Load6, Test_Load7, Test_Load8, Test_Load9, Test_Load10, Test_Load11, Test_Load12, Test_Load13};
@@ -61,7 +40,6 @@ const int test_load_num = 13;
 /****************************************************/
 paramType bufCommand[COMMAND_BUF_LENGTH];
 paramType *bufHead, *bufTail;
-paramType paramBuf;
 
 /****************************************************/
 /* Mode                                             */
@@ -74,7 +52,7 @@ unsigned long timer, setTime;
 /****************************************************/
 /* Last command values                              */
 /****************************************************/
-driveType lastCommand;
+driveType lastCommand = {0,0,0,0,0};
 moveType lastMove = {0,0,0,0};
 deltaType infiniteDelta = {0,0,0,0,0};
 /****************************************************/
@@ -156,32 +134,28 @@ Ret_Status parceCommand(char* const buf) {
   {
     if( (ret = parceParameters( buf + strlen(KeyDRIVE), sizeof(driveType)/sizeof(int) )) != RET_SUCCESS ) return ret;
     if( (ret = validateDriveParameters()) != RET_SUCCESS ) return ret;
-    paramBuf.command = COMMAND_DRIVE;
-    *bufHead = paramBuf;
+    bufHead->command = COMMAND_DRIVE;
     if( (ret = queueCommand()) != RET_SUCCESS ) return ret;
   }
   else if( ! strncmp( buf, KeyMOVE, strlen(KeyMOVE) ))
   {
     if( (ret = parceParameters( buf + strlen(KeyMOVE), sizeof(moveType)/sizeof(int) )) != RET_SUCCESS ) return ret;
     if( (ret = validateMoveParameters()) != RET_SUCCESS ) return ret;
-    paramBuf.command = COMMAND_MOVE;
-    *bufHead = paramBuf;
+    bufHead->command = COMMAND_MOVE;
     if( (ret = queueCommand()) != RET_SUCCESS ) return ret;
   }
   else if( ! strncmp( buf, KeyDELTA, strlen(KeyDELTA) ))
   {
     if( (ret = parceParameters( buf + strlen(KeyDELTA), sizeof(deltaType)/sizeof(int) )) != RET_SUCCESS ) return ret;
     if( (ret = validateDeltaParameters()) != RET_SUCCESS ) return ret;
-    paramBuf.command = COMMAND_DELTA;
-    *bufHead = paramBuf;
+    bufHead->command = COMMAND_DELTA;
     if( (ret = queueCommand()) != RET_SUCCESS ) return ret;
   }
   else if( ! strncmp( buf, KeyROTATE, strlen(KeyROTATE) ))
   {
     if( (ret = parceParameters( buf + strlen(KeyROTATE), sizeof(rotateType)/sizeof(int) )) != RET_SUCCESS ) return ret;
     if( (ret = validateRotateParameters()) != RET_SUCCESS ) return ret;
-    paramBuf.command = COMMAND_ROTATE;
-    *bufHead = paramBuf;
+    bufHead->command = COMMAND_ROTATE;
     if( (ret = queueCommand()) != RET_SUCCESS ) return ret;
   }
   else if( ! strncmp( buf, KeyMODE, strlen(KeyMODE) ))
@@ -209,7 +183,7 @@ Ret_Status parceParameters ( char *head, int par_num ) {
       if( *head != KeyDELIMITER ) return RET_ERR_PARAM_DELIMETER;
       head++;
       value = strtol( head, &tail, 10 );
-      if( abs(value) <= INT_MAX ) { paramBuf.params[ii] = value; }
+      if( abs(value) <= INT_MAX ) { bufHead->params[ii] = value; }
       else return RET_ERR_PARAM_VALUE_MAX;
       if( head == tail ) return RET_ERR_PARAM_NOT_FOUND;
       head = tail;
@@ -229,84 +203,68 @@ Ret_Status queueCommand () {
 }
 
 Ret_Status validateDriveParameters () {
-  if( (paramBuf.d.time > MAX_COMMAND_TIME) || (paramBuf.d.time < 0)) return RET_ERR_PARAM_VALUE_TIME;
+  if( (bufHead->drive.time > MAX_COMMAND_TIME) || (bufHead->drive.time < 0)) return RET_ERR_PARAM_VALUE_TIME;
   for( int ii=0; ii<4; ii++ )
   {
-    if( abs(paramBuf.d.motor[ii]) > MAX_COMMAND_POWER ) return RET_ERR_PARAM_VALUE_POWER;
+    if( abs(bufHead->drive.motor[ii]) > MAX_COMMAND_POWER ) return RET_ERR_PARAM_VALUE_POWER;
   }
   return RET_SUCCESS;
 }
 
 Ret_Status validateMoveParameters () {
-  if( (abs(paramBuf.m.distance) > MAX_COMMAND_DISTANCE) && (abs(paramBuf.m.distance) < INFINITE_COMMAND) ) return RET_ERR_PARAM_VALUE_DISTANCE;
-  if( abs(paramBuf.m.power) > MAX_COMMAND_POWER ) return RET_ERR_PARAM_VALUE_POWER;
-  if( abs(paramBuf.m.course) > MAX_COMMAND_COURSE) return RET_ERR_PARAM_VALUE_COURSE;
-  if( abs(paramBuf.m.curve) > MAX_WAY_CURVE ) return RET_ERR_PARAM_VALUE_CURVE;
+  if( (abs(bufHead->move.distance) > MAX_MOVE_DISTANCE) && (abs(bufHead->move.distance) < INFINITE_COMMAND) ) return RET_ERR_PARAM_VALUE_DISTANCE;
+  if( abs(bufHead->move.velocity) > MAX_MOVE_VELOCITY ) return RET_ERR_PARAM_VALUE_POWER;
+  if( abs(bufHead->move.course) > MAX_MOVE_COURSE) return RET_ERR_PARAM_VALUE_COURSE;
+  if( abs(bufHead->move.curve) > MAX_MOVE_CURVE ) return RET_ERR_PARAM_VALUE_CURVE;
 
-  if( paramBuf.m.distance > INFINITE_COMMAND ) { paramBuf.m.distance = INFINITE_COMMAND; }
-  if( paramBuf.m.distance < -INFINITE_COMMAND ) { paramBuf.m.distance = -INFINITE_COMMAND; }
+  if( bufHead->move.distance > INFINITE_COMMAND ) { bufHead->move.distance = INFINITE_COMMAND; }
+  if( bufHead->move.distance < -INFINITE_COMMAND ) { bufHead->move.distance = -INFINITE_COMMAND; }
   return RET_SUCCESS;
 }
 
 Ret_Status validateDeltaParameters () {
-    if( paramBuf.md.repeat < 0) return RET_ERR_PARAM_VALUE_REPEAT;
-    if( (abs(paramBuf.md.distance) > MAX_COMMAND_DISTANCE) && (abs(paramBuf.md.distance) < INFINITE_COMMAND)) return RET_ERR_PARAM_VALUE_DISTANCE;
-    if( abs(paramBuf.md.power) > 2*MAX_COMMAND_POWER ) return RET_ERR_PARAM_VALUE_POWER;
-    if( abs(paramBuf.md.course) > MAX_COMMAND_COURSE ) return RET_ERR_PARAM_VALUE_COURSE;
-    if( abs(paramBuf.md.curve) > 2*MAX_WAY_CURVE ) return RET_ERR_PARAM_VALUE_CURVE;
+    if( bufHead->delta.repeat < 0) return RET_ERR_PARAM_VALUE_REPEAT;
+    if( (abs(bufHead->delta.distance) > MAX_MOVE_DISTANCE) && (abs(bufHead->delta.distance) < INFINITE_COMMAND)) return RET_ERR_PARAM_VALUE_DISTANCE;
+    if( abs(bufHead->delta.velocity) > 2*MAX_MOVE_VELOCITY ) return RET_ERR_PARAM_VALUE_POWER;
+    if( abs(bufHead->delta.course) > MAX_MOVE_COURSE ) return RET_ERR_PARAM_VALUE_COURSE;
+    if( abs(bufHead->delta.curve) > 2*MAX_MOVE_CURVE ) return RET_ERR_PARAM_VALUE_CURVE;
     
-    if( paramBuf.md.distance > INFINITE_COMMAND ) { paramBuf.md.distance = INFINITE_COMMAND; }
-    if( paramBuf.md.distance < -INFINITE_COMMAND ) { paramBuf.md.distance = -INFINITE_COMMAND; }
-    if( paramBuf.md.repeat > INFINITE_COMMAND) { paramBuf.md.repeat = INFINITE_COMMAND; }
+    if( bufHead->delta.distance > INFINITE_COMMAND ) { bufHead->delta.distance = INFINITE_COMMAND; }
+    if( bufHead->delta.distance < -INFINITE_COMMAND ) { bufHead->delta.distance = -INFINITE_COMMAND; }
+    if( bufHead->delta.repeat > INFINITE_COMMAND) { bufHead->delta.repeat = INFINITE_COMMAND; }
     return RET_SUCCESS;
 }
 
 Ret_Status validateRotateParameters () {
-    if (abs(paramBuf.r.power) > MAX_COMMAND_POWER) return RET_ERR_PARAM_VALUE_POWER;
-    if (abs(paramBuf.r.power) < calRotation.min) {
-      paramBuf.r.power = 0;
+    if (abs(bufHead->rotate.power) > MAX_COMMAND_POWER) return RET_ERR_PARAM_VALUE_POWER;
+    if (abs(bufHead->rotate.power) < MIN_POWER_ROTATION) {
+      bufHead->rotate.power = 0;
       statusDecode(RET_WARN_MIN_POWER);
     }
-    if( paramBuf.r.angle > INFINITE_COMMAND ) { paramBuf.r.angle = INFINITE_COMMAND; }
-    if( paramBuf.r.angle < -INFINITE_COMMAND ) { paramBuf.r.angle = -INFINITE_COMMAND; }
+    if( bufHead->rotate.angle > INFINITE_COMMAND ) { bufHead->rotate.angle = INFINITE_COMMAND; }
+    if( bufHead->rotate.angle < -INFINITE_COMMAND ) { bufHead->rotate.angle = -INFINITE_COMMAND; }
     return RET_SUCCESS;  
 }
 
 Ret_Status processModeParameters () {
-    currentMode |= paramBuf.o.set;
-    currentMode &= ~paramBuf.o.reset;
+    currentMode |= bufHead->mode.set;
+    currentMode &= ~(bufHead->mode.reset);
     return RET_SUCCESS;
 }
 
 Ret_Status processEchoParameters () {
-    if( 0 == paramBuf.e.repeat ) {
+    if( 0 == bufHead->echo.repeat ) {
       echoRepeat = 0;
       commandEcho();
     }
-    else if( paramBuf.e.repeat < MIN_ECHO_REPEAT ) {
+    else if( bufHead->echo.repeat < MIN_ECHO_REPEAT ) {
       return RET_ERR_ECHO_REPEAT;
     }
     else {
-      echoRepeat = paramBuf.e.repeat;
+      echoRepeat = bufHead->echo.repeat;
       echoRepeatTime = millis();
     }
     return RET_SUCCESS;
-}
-
-float calibration(float power, calibrationType cal) {
-  float fixed_power;
-  float a_factor = (1-cal.shift/(float)MAX_COMMAND_POWER);
-  float y_turn = a_factor*cal.turn + cal.shift;
-  
-  if ( abs(power) < 1 ) { return 0; } // Avoid rounding error.
-  if ( abs(power) < cal.turn ) {
-    fixed_power = abs(power)*(y_turn-cal.cutoff)/cal.turn + cal.cutoff;
-  } else {
-    fixed_power = abs(power)*a_factor + cal.shift;
-  }
-  
-  if( power > 0 ) { return fixed_power; }
-  else { return -fixed_power; }
 }
 
 /***######################################################################################################################################################################***/
@@ -325,25 +283,25 @@ void commandPrepare() {
 
     switch( bufTail->command ) {
       case COMMAND_DRIVE:
-        lastCommand = bufTail->d;
+        lastCommand = bufTail->drive;
         commandDrive();
         break;
       case COMMAND_MOVE:
-        processMoveParameters(&(bufTail->m));
+        processMoveParameters(&(bufTail->move));
         commandDrive();
-        lastMove = bufTail->m;
+        lastMove = bufTail->move;
         break;
       case COMMAND_DELTA:
-        move = bufTail->m;
+        move = bufTail->move;
         processDeltaParameters(&move);
         processMoveParameters(&move);
         commandDrive();
         lastMove = move;
-        if( (bufTail->md.repeat) == INFINITE_COMMAND ) {
-            infiniteDelta = bufTail->md;
+        if( (bufTail->delta.repeat) == INFINITE_COMMAND ) {
+            infiniteDelta = bufTail->delta;
         } else {
-            if( bufTail->md.repeat > 0 ) {
-                (bufTail->md.repeat)--;
+            if( bufTail->delta.repeat > 0 ) {
+                (bufTail->delta.repeat)--;
                 return; // Keep the delta command in the queue while repeate > 0
             }
         }
@@ -379,34 +337,34 @@ Ret_Status processInfiniteDelta() {
 
 void processRotateParameters () {
 
-    int local_power = bufTail->r.power;
-    if ( bufTail->r.angle < 0 ) local_power = -local_power;
+    int local_power = bufTail->rotate.power;
+    if ( bufTail->rotate.angle < 0 ) local_power = -local_power;
     
     float fixed_power = calibration(local_power, calRotation);
     for( int ii=0; ii<4; ii++ ) { lastCommand.motor[ii] = fixed_power; }
     
-    if( (local_power == 0) || (abs(bufTail->r.angle) == INFINITE_COMMAND) ) {
+    if( (local_power == 0) || (abs(bufTail->rotate.angle) == INFINITE_COMMAND) ) {
         lastCommand.time = 0;
     } else {
         //TODO time can exceed MAX possible value. Need to check at validate stage
-        lastCommand.time = ROTATION_MS_CM_PER_DEG * calRotation.factor * abs(bufTail->r.angle) / abs(local_power);
+        lastCommand.time = CAR_CM_PER_DEG * CONST_MS_PER_SEC * CALIBRATION_ROTATE_POWER_CM_S * abs(bufTail->rotate.angle) / abs(local_power); // 1000 * 0.168 * 2 * angle /power
         if( lastCommand.time == 0 ) {
             for( int ii=0; ii<4; ii++ ) { lastCommand.motor[ii] = 0; }
         }
     }
 
     if( DEBUG ) {
-        Serial.print( "Rotate: " ); Serial.print( bufTail->r.angle ); Serial.print( ' ' ); Serial.println( bufTail->r.power );
+        Serial.print( "Rotate: " ); Serial.print( bufTail->rotate.angle ); Serial.print( ' ' ); Serial.println( bufTail->rotate.power );
         Serial.print( "Rotate: " ); Serial.print( lastCommand.time ); Serial.print( ' ' ); Serial.println( lastCommand.motor[0] );
     }
 }
 
 void processMoveParameters( moveType* mv ) {
-  int angle_0_45, local_power, max_power;
+  int angle_0_45, local_power, max_power, fixed_velocity;
   float course, rotation, correction, drive1, drive2;
 
-  if( abs(mv->power) < calMove.min ) {
-    mv->power = 0;
+  if( abs(mv->velocity) < MIN_POWER_MOVE / CALIBRATION_MOVE_POWER_CM_S ) {
+    mv->velocity = 0;
     statusDecode(RET_WARN_MIN_POWER);
   }
 
@@ -416,7 +374,7 @@ void processMoveParameters( moveType* mv ) {
   
   for( int jj=0; jj<10; jj++ ) {
     //TODO process error if jj=10 is not enough and power still more than MAX
-    local_power = mv->power;
+    local_power = mv->velocity * CALIBRATION_MOVE_POWER_CM_S;
     if ( mv->distance < 0 ) local_power = -local_power;
     rotation = local_power * CAR_RADIUS * mv->curve / 1000; // CarRadius / WayRadius
     
@@ -432,14 +390,15 @@ void processMoveParameters( moveType* mv ) {
     max_power = 0;
     for( int ii=1; ii<4; ii++ ) { max_power = max(max_power, abs(lastCommand.motor[ii])); }
     if( max_power > MAX_COMMAND_POWER ) {
-      mv->power *= (float)MAX_COMMAND_POWER / max_power;
-      if(abs(local_power) == abs(mv->power)) {
-        if(mv->power > 0) { (mv->power)--; }
-        if(mv->power < 0) { (mv->power)++; }
+      fixed_velocity = mv->velocity * (float)MAX_COMMAND_POWER / max_power;
+      if(fixed_velocity == mv->velocity) {
+        if(fixed_velocity > 0) { (fixed_velocity)--; }
+        if(fixed_velocity < 0) { (fixed_velocity)++; }
       }
+      mv->velocity = fixed_velocity;
       if( DEBUG ) {
         Serial.print( "Motor: " ); Serial.print( lastCommand.motor[0] ); Serial.print( ' ' ); Serial.print( lastCommand.motor[1] ); Serial.print( ' ' ); Serial.print( lastCommand.motor[2] ); Serial.print( ' ' ); Serial.println( lastCommand.motor[3] );
-        Serial.print( "Power Reduced: " ); Serial.print( ' ' ); Serial.print( max_power ); Serial.print( ' ' ); Serial.print( mv->power ); Serial.print( ' ' ); Serial.println( local_power );
+        Serial.print( "Power Reduced: " ); Serial.print( ' ' ); Serial.print( max_power ); Serial.print( ' ' ); Serial.print( mv->velocity ); Serial.print( ' ' ); Serial.println( local_power );
       }
     } else {
       if( jj > 1 ) { statusDecode(RET_WARN_MAX_POWER_REACHED); }
@@ -447,19 +406,19 @@ void processMoveParameters( moveType* mv ) {
     }
   }
 
-  if( (mv->power == 0) || (abs(mv->distance) == INFINITE_COMMAND) )
+  if( (mv->velocity == 0) || (abs(mv->distance) == INFINITE_COMMAND) )
   {
       lastCommand.time = 0;
   } else {
       //TODO time can exceed MAX possible value. Need to check at validate stage
-      lastCommand.time = 11000 * (long)abs(mv->distance) / abs(local_power) / 4.3;
+      lastCommand.time = CONST_MS_PER_SEC * (long)abs(mv->distance) / abs(mv->velocity); // 1000 * distance / velocity
       if( lastCommand.time == 0 ) {
           for( int ii=0; ii<4; ii++ ) { lastCommand.motor[ii] = 0; }
       }
   }
   
   if( DEBUG ) {
-    Serial.print( "Move Input: " ); Serial.print( mv->distance ); Serial.print( ' ' ); Serial.print( mv->power ); Serial.print( ' ' ); Serial.print( mv->course ); Serial.print( ' ' ); Serial.println( mv->curve );
+    Serial.print( "Move Input: " ); Serial.print( mv->distance ); Serial.print( ' ' ); Serial.print( mv->velocity ); Serial.print( ' ' ); Serial.print( mv->course ); Serial.print( ' ' ); Serial.println( mv->curve );
     Serial.print( "Move1: " ); Serial.print( correction ); Serial.print( ' ' ); Serial.print( drive1 ); Serial.print( ' ' ); Serial.print( drive2 ); Serial.print( ' ' ); Serial.println( rotation );
     Serial.print( "Move2: " ); Serial.print( calibration(drive1, calMove) ); Serial.print( ' ' ); Serial.print( calibration(drive1+rotation, calCurve) ); Serial.print( ' ' ); Serial.println( calibration(drive1, calCurve) );
     Serial.print( "Move Output: " ); Serial.print( lastCommand.time ); Serial.print( ' ' ); Serial.print( lastCommand.motor[0] ); Serial.print( ' ' ); Serial.print( lastCommand.motor[1] ); Serial.print( ' ' ); Serial.print( lastCommand.motor[2] ); Serial.print( ' ' ); Serial.println( lastCommand.motor[3] );
@@ -473,20 +432,36 @@ void processDeltaParameters( moveType* dm ) {
       else { dm->distance = lastMove.distance; }
     }
     if( abs(dm->distance) != INFINITE_COMMAND ) {
-        if (dm->distance > MAX_COMMAND_DISTANCE) { dm->distance = MAX_COMMAND_DISTANCE; }
-        if (dm->distance < -MAX_COMMAND_DISTANCE) { dm->distance = -MAX_COMMAND_DISTANCE; }
+        if (dm->distance > MAX_MOVE_DISTANCE) { dm->distance = MAX_MOVE_DISTANCE; }
+        if (dm->distance < -MAX_MOVE_DISTANCE) { dm->distance = -MAX_MOVE_DISTANCE; }
     }
     
-    dm->power = lastMove.power + dm->power;
-    if (dm->power > MAX_COMMAND_POWER) { dm->power = MAX_COMMAND_POWER; }
-    if (dm->power < -MAX_COMMAND_POWER) { dm->power = -MAX_COMMAND_POWER; }
+    dm->velocity = lastMove.velocity + dm->velocity;
+    if (dm->velocity > MAX_MOVE_VELOCITY) { dm->velocity = MAX_MOVE_VELOCITY; }
+    if (dm->velocity < -MAX_MOVE_VELOCITY) { dm->velocity = -MAX_MOVE_VELOCITY; }
 
     dm->course = lastMove.course + dm->course;
-    dm->course = dm->course % MAX_COMMAND_COURSE;
+    dm->course = dm->course % MAX_MOVE_COURSE;
 
     dm->curve = lastMove.curve + dm->curve;
-    if( dm->curve > MAX_WAY_CURVE ) { dm->curve = MAX_WAY_CURVE; }
-    if( dm->curve < -MAX_WAY_CURVE ) { dm->curve = -MAX_WAY_CURVE; }
+    if( dm->curve > MAX_MOVE_CURVE ) { dm->curve = MAX_MOVE_CURVE; }
+    if( dm->curve < -MAX_MOVE_CURVE ) { dm->curve = -MAX_MOVE_CURVE; }
+}
+
+float calibration(float power, const calibrationType cal) {
+  float fixed_power;
+  float a_factor = (1-cal.shift/(float)MAX_COMMAND_POWER);
+  float y_turn = a_factor*cal.turn + cal.shift;
+  
+  if ( abs(power) < 1 ) { return 0; } // Avoid rounding error.
+  if ( abs(power) < cal.turn ) {
+    fixed_power = abs(power)*(y_turn-cal.cutoff)/cal.turn + cal.cutoff;
+  } else {
+    fixed_power = abs(power)*a_factor + cal.shift;
+  }
+  
+  if( power > 0 ) { return fixed_power; }
+  else { return -fixed_power; }
 }
 
 /***######################################################################################################################################################################***/
@@ -567,7 +542,7 @@ void commandStatus()
   for( int ii=0; ii<4; ii++ ) { Serial.print(KeyDELIMITER); Serial.print(lastCommand.motor[ii]); }
   Serial.print(KeyEOL1);
   
-  Serial.print(KeyLAST); Serial.print(KeyDELIMITER); Serial.print(lastMove.distance); Serial.print(KeyDELIMITER); Serial.print(lastMove.power); Serial.print(KeyDELIMITER); Serial.print(lastMove.course); Serial.print(KeyDELIMITER); Serial.print(lastMove.curve);
+  Serial.print(KeyLAST); Serial.print(KeyDELIMITER); Serial.print(lastMove.distance); Serial.print(KeyDELIMITER); Serial.print(lastMove.velocity); Serial.print(KeyDELIMITER); Serial.print(lastMove.course); Serial.print(KeyDELIMITER); Serial.print(lastMove.curve);
   Serial.print(KeyEOL1);
 
   Serial.print(KeyMODE); Serial.print(KeyDELIMITER); Serial.print(currentMode); Serial.print(KeyDELIMITER); Serial.print(COMMAND_BUF_LENGTH-1);
@@ -664,7 +639,7 @@ void loop() {
 }
 
 void serialEvent() {
-  static char tempBuf[MAX_STREAM_LENGTH / 2];
+  char tempBuf[MAX_STREAM_LENGTH / 2];
   static char streamBuf[MAX_STREAM_LENGTH + 1] = {0};
   char *stream_start = streamBuf;
   char *command_end;

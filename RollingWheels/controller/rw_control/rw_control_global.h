@@ -35,14 +35,14 @@ typedef enum Ret_Status {
 /****************************************************/
 typedef struct moveType {
     int distance;
-    int power;
+    int velocity;
     int course;
     int curve;
 } moveType;
 
 typedef struct deltaType {
     int distance;
-    int power;
+    int velocity;
     int course;
     int curve;
     int repeat;
@@ -90,17 +90,17 @@ typedef union paramType {
     int params[5];
     unsigned char command;
   };
-  moveType m;
-  deltaType md;
-  lastEvType le;
-  driveType d;
-  driveEvType de;
-  modeType o;
-  modeEvType oe;
-  rotateType r;
-  echoType e;
-  echoEvType ee;
-  readyEvType re;
+  moveType move;
+  deltaType delta;
+  lastEvType last;
+  driveType drive;
+  driveEvType driveEv;
+  modeType mode;
+  modeEvType modeEv;
+  rotateType rotate;
+  echoType echo;
+  echoEvType echoEv;
+  readyEvType readyEv;
 } paramType;
 
 /****************************************************/
@@ -139,36 +139,56 @@ static const char KeyLAST[] = "LAST";
 /****************************************************/
 static const int MAX_COMMAND_TIME = 30000;
 static const int MAX_COMMAND_POWER = 255;
-static const int MAX_WAY_CURVE = 100; // 1000/cm
-static const int MAX_COMMAND_DISTANCE = 500; // cm; MAX_COMMAND_DISTANCE shall be less than INFINITE_COMMAND/2
+static const int MAX_MOVE_VELOCITY = 100; // cm/S
+static const int MAX_MOVE_CURVE = 100; // 1000/cm
+static const int MAX_MOVE_DISTANCE = 1000; // cm; MAX_COMMAND_DISTANCE shall be less than INFINITE_COMMAND/2; MAX_COMMAND_DISTANCE shall be less than MAX_INT * MAX_MOVE_VELOCITY / CONST_MS_PER_SEC
 static const int INFINITE_COMMAND = 30000;
-static const int MAX_COMMAND_COURSE = 360; // degrees
+static const int MAX_MOVE_COURSE = 360; // degrees
 static const int MAX_ECHO_RANGE_CM = 500;
 static const int MIN_ECHO_REPEAT = 50; // mS
 
 /****************************************************/
+/* Vehicle geometry and Calibration constants       */
+/****************************************************/
+static const int CONST_MS_PER_SEC = 1000;
+static const float CONST_PI = 3.1415;
+static const int CONST_DEG_PER_PI = 180;
+static const float CAR_RADIUS = 9.6; // cm
+static const float CAR_CM_PER_DEG = CAR_RADIUS * CONST_PI / CONST_DEG_PER_PI; //0.168
+static const int SOUND_MS_PER_CM = 58; // doubled because the sound forward plus back way
+static const int MIN_POWER_ROTATION = 50;
+static const int MIN_POWER_MOVE = 70;
+static const float CALIBRATION_ROTATE_POWER_CM_S = 2.; // Power per cm/S for ROTATE command
+static const float CALIBRATION_MOVE_POWER_CM_S = 2.56; // Power per cm/S for MOVE command
+
+/****************************************************/
 /* String table                                     */
 /****************************************************/
-#define STRING_WARN1 "Calibration exceeded max power. Replaced by possible value"
-#define STRING_WARN2 "Too low power. Zero power used instead"
-#define STRING_WARN3 "Unknown Warning"
-#define STRING_ERROR1 "Buffer Overload"
-#define STRING_ERROR2 "No Terminator"
-#define STRING_ERROR3 "Wrong Command"
-#define STRING_ERROR4 "No Parameters"
-#define STRING_ERROR5 "No Delimiter"
-#define STRING_ERROR6 "Garbage in Stream Buffer"
-#define STRING_ERROR7 "Wrong Time Value"
-#define STRING_ERROR8 "Wrong Power Value"
-#define STRING_ERROR9 "Wrong Angle Value"
-#define STRING_ERROR10 "Too large degree of curve"
-#define STRING_ERROR11 "Wrong Course Value"
-#define STRING_ERROR12 "Wrong Distance Value"
-#define STRING_ERROR13 "Too small echo repeat time"
-#define STRING_ERROR14 "Too large parameter value"
-#define STRING_ERROR15 "Negative Repeat Value"
-#define STRING_ERROR16 "Critical System Error"
-#define STRING_ERROR17 "Unknown Error"
+#define STRING_TABLE_GLOBAL \
+const char String_Warn1[] STRING_MEM_MODE = "Calibration exceeded max power. Replaced by possible value"; \
+const char String_Warn2[] STRING_MEM_MODE = "Too low power. Zero power used instead"; \
+const char String_Warn3[] STRING_MEM_MODE = "Unknown Warning"; \
+const char String_Error1[] STRING_MEM_MODE = "Buffer Overload"; \
+const char String_Error2[] STRING_MEM_MODE = "No Terminator"; \
+const char String_Error3[] STRING_MEM_MODE = "Wrong Command"; \
+const char String_Error4[] STRING_MEM_MODE = "No Parameters"; \
+const char String_Error5[] STRING_MEM_MODE = "No Delimiter"; \
+const char String_Error6[] STRING_MEM_MODE = "Garbage in Stream Buffer"; \
+const char String_Error7[] STRING_MEM_MODE = "Wrong Time Value"; \
+const char String_Error8[] STRING_MEM_MODE = "Wrong Power Value"; \
+const char String_Error9[] STRING_MEM_MODE = "Wrong Angle Value"; \
+const char String_Error10[] STRING_MEM_MODE = "Too large degree of curve"; \
+const char String_Error11[] STRING_MEM_MODE = "Wrong Course Value"; \
+const char String_Error12[] STRING_MEM_MODE = "Wrong Distance Value"; \
+const char String_Error13[] STRING_MEM_MODE = "Too small echo repeat time"; \
+const char String_Error14[] STRING_MEM_MODE = "Too large parameter value"; \
+const char String_Error15[] STRING_MEM_MODE = "Negative Repeat Value"; \
+const char String_Error16[] STRING_MEM_MODE = "Critical System Error"; \
+const char String_Error17[] STRING_MEM_MODE = "Unknown Error"; \
+\
+const char* const string_table_warn[] STRING_MEM_MODE = {String_Warn1, String_Warn2, String_Warn3}; \
+const char* const string_table_error[] STRING_MEM_MODE = {String_Error1, String_Error2, String_Error3, String_Error4, String_Error5, String_Error6, String_Error7, String_Error8, \
+                                                  String_Error9, String_Error10, String_Error11, String_Error12, String_Error13, String_Error14, String_Error15, String_Error16, String_Error17};
 
 #define MAX_STRING_LENGTH 63
 

@@ -1,7 +1,7 @@
 /****************************************************/
-/* String table (local strings)                     */
+/* String table memory allocation modifyer          */
 /****************************************************/
-#define STRING_HELLO "Rolling Wheels Ard. ver:0.027 (delta)"
+#define STRING_MEM_MODE PROGMEM
 
 /****************************************************/
 /* Error codes                                      */
@@ -18,26 +18,15 @@ typedef enum commandEnum {
 /* Calibration                                      */
 /****************************************************/
 typedef struct calibrationType_t {
+  /* memory allocation: 8 bytes per structure */
   unsigned char cutoff;
   unsigned char turn;
   unsigned char shift;
-  unsigned char min;
-  float factor;
 } calibrationType;
 
-static calibrationType const calCurve = {35, 50, 0, 0, 1};
-static calibrationType const calRotation = {30, 65, 13, 50, 2};
-static calibrationType const calMove = {60, 200, 40, 70, 1};
-
-/****************************************************/
-/* Constants and vehicle geometry                   */
-/****************************************************/
-static const int CONST_MS_PER_SEC = 1000;
-static const float CONST_PI = 3.1415;
-static const int CONST_DEG_PER_PI = 180;
-static const float CAR_RADIUS = 9.6; // cm
-static const float ROTATION_MS_CM_PER_DEG = CAR_RADIUS * CONST_MS_PER_SEC * CONST_PI / CONST_DEG_PER_PI; //167; //CAR_RADIUS*2pi/360(degrees)*1000(mS)
-static const int SOUND_MS_PER_CM = 58; // doubled because the sound forward plus back way
+static calibrationType const calCurve = {35, 50, 0};
+static calibrationType const calRotation = {30, 65, 13};
+static calibrationType const calMove = {60, 200, 40};
 
 /****************************************************/
 /* Pins                                             */
@@ -74,7 +63,7 @@ void processDeltaParameters ( moveType* mv );
 void processRotateParameters (void);
 Ret_Status processModeParameters (void);
 Ret_Status processEchoParameters (void);
-float calibration(float power, calibrationType cal);
+float calibration(float power, const calibrationType cal);
 void commandPrepare(void);
 void statusDecode(Ret_Status ret);
 void commandDrive(void);

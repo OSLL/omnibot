@@ -1,3 +1,8 @@
+ver.28:
+- Move string table to .h file
+- Change power to velocity in MOVE and DELTA commands
+- Cleanup here and there
+
 ver.27:
 - Queue keeps initial high level commands instead of motor power starting this version.
 - Infinite DELTA command execution supported.
