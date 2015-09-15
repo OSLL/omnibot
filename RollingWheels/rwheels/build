@@ -1,0 +1,1 @@
+gcc rwheels.c rwparcer.c rw_string_table.c -lwiringPi -o rwheels
