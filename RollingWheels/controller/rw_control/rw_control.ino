@@ -37,7 +37,6 @@ const char* const string_table_error[] PROGMEM = {String_Error1, String_Error2, 
 /****************************************************/
 /* Input stream buffer and command data buffer      */
 /****************************************************/
-char streamBuf[MAX_STREAM_LENGTH + 1];
 driveType bufCommand[COMMAND_BUF_LENGTH];
 driveType *bufHead, *bufTail;
 paramType paramBuf;
@@ -97,8 +96,6 @@ void setup() {
   delay(1000);
   commandHello();
 
-  // Clear serial input buffer
-  streamBuf[0] = 0;
   // Initialize engines command queue and stop engines
   commandStop();
 }
@@ -543,7 +540,8 @@ void loop() {
 }
 
 void serialEvent() {
-  char tempBuf[MAX_STREAM_LENGTH / 2];
+  static char tempBuf[MAX_STREAM_LENGTH / 2];
+  static char streamBuf[MAX_STREAM_LENGTH + 1] = {0};
   char *stream_start = streamBuf;
   char *command_end;
 

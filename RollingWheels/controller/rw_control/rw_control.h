@@ -1,7 +1,7 @@
 /****************************************************/
 /* String table (local strings)                     */
 /****************************************************/
-#define STRING_HELLO "Rolling Wheels Ard. ver:0.025 (sound)"
+#define STRING_HELLO "Rolling Wheels Ard. ver:0.026.1"
 
 /****************************************************/
 /* Calibration                                      */
@@ -43,7 +43,7 @@ static const unsigned int soundTriggerPin = 11;
 /* Limits                                           */
 /****************************************************/
 const int MAX_STREAM_LENGTH = 255;
-const int COMMAND_BUF_LENGTH = 10;
+const int COMMAND_BUF_LENGTH = 30;
 
 /****************************************************/
 /* Function declarations                            */

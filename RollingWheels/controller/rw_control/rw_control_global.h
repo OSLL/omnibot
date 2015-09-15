@@ -37,10 +37,14 @@ typedef struct moveType {
     int curve;
 } moveType;
 
+typedef moveType lastEvType;
+
 typedef struct driveType {
     int time;
     int motor[4];
 } driveType;
+
+typedef driveType driveEvType;
 
 typedef struct modeType {
     int set;
@@ -76,7 +80,9 @@ typedef union paramType {
     int params[5];
   };
   moveType m;
+  lastEvType le;
   driveType d;
+  driveEvType de;
   modeType o;
   modeEvType oe;
   rotateType r;
