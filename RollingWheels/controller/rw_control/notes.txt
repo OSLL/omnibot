@@ -1,0 +1,3 @@
+ver.26 is last version where queue contains motor parameters.
+Then we switched to put initial commands to queue.
+One sound detector supported.
