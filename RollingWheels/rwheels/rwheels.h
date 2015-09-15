@@ -1,3 +1,8 @@
+#ifndef RWHEELS_H
+#define RWHEELS_H
+
+#define STRING_MEM_MODE
+
 /****************************************************/
 /* Data types                                       */
 /****************************************************/
@@ -26,3 +31,5 @@ extern const char* const string_table_error[];
 extern controllerDataType controllerData;
 extern int seriald;
 void serialReadLine( void );
+
+#endif

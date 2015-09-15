@@ -34,8 +34,8 @@ int main (void) {
 }
 
 void printCurrentData (void) {
-    printf("last: %d,%d,%d,%d; ", controllerData.last.distance, controllerData.last.power, controllerData.last.course, controllerData.last.curve);
-    printf("ready: %d,%d; ", controllerData.ready.time, controllerData.ready.queue);
+    printf("last: %d,%d,%d,%d; ", controllerData.last.distance, controllerData.last.velocity, controllerData.last.course, controllerData.last.curve);
+    printf("ready: %d; ", controllerData.ready.queue);
     printf("drive: %d,%d,%d,%d,%d; ", controllerData.drive.time, controllerData.drive.motor[0], controllerData.drive.motor[1], controllerData.drive.motor[2], controllerData.drive.motor[3]);
     printf("mode: %d,%d; ", controllerData.mode.mode, controllerData.mode.queue);
     printf("echo: %d; ", controllerData.echo.range);
@@ -65,16 +65,16 @@ void test2(void) {
         serialPuts (seriald, ";;HELLO;;");
         serialPuts (seriald, "STOP;");
         serialPuts (seriald, "ECHO,400;");
-//        serialPuts (seriald, "MODE,1,0;");
-//        serialPuts (seriald, "MOVE,3,150,45,-40;"); // Linear move with rotation
-        serialPuts (seriald, "MOVE,3,150,45,0;");
+        serialPuts (seriald, "MODE,1,0;");
+//        serialPuts (seriald, "MOVE,3,59,45,-40;"); // Linear move with rotation
+        serialPuts (seriald, "MOVE,3,59,45,0;");
         first_run = 0;
     }
     if(current_timestamp() - time_ms > 250) {
             printCurrentData();
             if (controllerData.ready.queue < (controllerData.mode.queue / 2)) {
                 for(ii=0; ii<(controllerData.mode.queue / 2); ii++) {
-                    serialPuts (seriald, "DELTA,0,0,10,0;");
+                    serialPuts (seriald, "DELTA,0,0,10,0,0;");
                     sleep_ms(30);
                 }
             }
@@ -99,7 +99,7 @@ void test1(void) {
             printCurrentData();
             if (controllerData.ready.queue < 5) {
                 ttt++;
-                sprintf( temp_str, "MOVE,%d,140,45,0;", ttt);
+                sprintf( temp_str, "MOVE,%d,55,45,0;", ttt);
                 serialPuts (seriald, temp_str);
             }
             tt = time(NULL);

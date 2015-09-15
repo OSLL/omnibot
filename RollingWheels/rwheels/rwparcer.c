@@ -8,9 +8,17 @@
 
 #define MAX_STREAM_LENGTH 255
 
+/************************************************/
+/* Global variables                             */
+/************************************************/
 int seriald = -1;
 paramType paramBuf;
 controllerDataType controllerData;
+
+/************************************************/
+/* String table                                 */
+/************************************************/
+STRING_TABLE_GLOBAL
 
 /************************************************/
 /* Funcion declarations                         */
@@ -29,33 +37,34 @@ Ret_Status parceResponce( char* const buf ) {
     Ret_Status ret;
     if( DEBUG ) { printf( "Parcer input: %s\n", buf ); }
 
-    if( ! strncmp( buf, KeyHELLO, strlen(KeyHELLO) ))
-    {
-    }
-    else if( ! strncmp( buf, KeyREADY, strlen(KeyREADY) ))
+    if( ! strncmp( buf, KeyREADY, strlen(KeyREADY) ))
     {
         if( (ret = parceParameters( buf + strlen(KeyREADY), sizeof(readyEvType)/sizeof(int) )) != RET_SUCCESS ) return ret;
-        controllerData.ready = paramBuf.re;
+        controllerData.ready = paramBuf.readyEv;
     }
     else if( ! strncmp( buf, KeyDRIVE, strlen(KeyDRIVE) ))
     {
         if( (ret = parceParameters( buf + strlen(KeyDRIVE), sizeof(driveEvType)/sizeof(int) )) != RET_SUCCESS ) return ret;
-        controllerData.drive = paramBuf.de;
+        controllerData.drive = paramBuf.driveEv;
     }
     else if( ! strncmp( buf, KeyECHO, strlen(KeyECHO) ))
     {
         if( (ret = parceParameters( buf + strlen(KeyECHO), sizeof(echoEvType)/sizeof(int) )) != RET_SUCCESS ) return ret;
-        controllerData.echo = paramBuf.ee;
+        controllerData.echo = paramBuf.echoEv;
     }
     else if( ! strncmp( buf, KeyMODE, strlen(KeyMODE) ))
     {
         if( (ret = parceParameters( buf + strlen(KeyMODE), sizeof(modeEvType)/sizeof(int) )) != RET_SUCCESS ) return ret;
-        controllerData.mode = paramBuf.oe;
+        controllerData.mode = paramBuf.modeEv;
     }
     else if( ! strncmp( buf, KeyLAST, strlen(KeyLAST) ))
     {
         if( (ret = parceParameters( buf + strlen(KeyMODE), sizeof(lastEvType)/sizeof(int) )) != RET_SUCCESS ) return ret;
-        controllerData.last = paramBuf.le;
+        controllerData.last = paramBuf.lastEv;
+    }
+    else if( ! strncmp( buf, KeyHELLO, strlen(KeyHELLO) ))
+    {
+        printf( "Arduino: %s\n", buf );
     }
     else if( ! strncmp( buf, KeyERROR, strlen(KeyERROR) ))
     {

@@ -1,3 +1,6 @@
+#ifndef RW_CONTROL_GLOBAL_H
+#define RW_CONTROL_GLOBAL_H
+
 /****************************************************/
 /* Error codes                                      */
 /****************************************************/
@@ -92,7 +95,7 @@ typedef union paramType {
   };
   moveType move;
   deltaType delta;
-  lastEvType last;
+  lastEvType lastEv;
   driveType drive;
   driveEvType driveEv;
   modeType mode;
@@ -150,10 +153,10 @@ static const int MIN_ECHO_REPEAT = 50; // mS
 /****************************************************/
 /* Vehicle geometry and Calibration constants       */
 /****************************************************/
-static const int CONST_MS_PER_SEC = 1000;
-static const float CONST_PI = 3.1415;
-static const int CONST_DEG_PER_PI = 180;
-static const float CAR_RADIUS = 9.6; // cm
+#define CONST_MS_PER_SEC (1000)
+#define CONST_PI (3.1415)
+#define CONST_DEG_PER_PI (180)
+#define CAR_RADIUS (9.6)
 static const float CAR_CM_PER_DEG = CAR_RADIUS * CONST_PI / CONST_DEG_PER_PI; //0.168
 static const int SOUND_MS_PER_CM = 58; // doubled because the sound forward plus back way
 static const int MIN_POWER_ROTATION = 50;
@@ -195,4 +198,5 @@ const char* const string_table_error[] STRING_MEM_MODE = {String_Error1, String_
 extern const char* const string_table_warn[];
 extern const char* const string_table_error[];
 
+#endif
 
