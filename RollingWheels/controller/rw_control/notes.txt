@@ -1,3 +1,6 @@
+ver.29:
+- emergency stop based on echo locator reported range
+
 ver.28:
 - Move string table to .h file
 - Change power to velocity in MOVE and DELTA commands

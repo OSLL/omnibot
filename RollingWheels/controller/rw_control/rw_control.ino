@@ -12,7 +12,7 @@ const int DEBUG = 0;
 /****************************************************/
 STRING_TABLE_GLOBAL
 
-const char String_Hello[] STRING_MEM_MODE = "Rolling Wheels Ard. ver:0.028 (cm/S for MOVE)";
+const char String_Hello[] STRING_MEM_MODE = "Rolling Wheels Ard. ver:0.029 (echo stop)";
 const char* const string_table_local[] STRING_MEM_MODE = {String_Hello};
 
 /****************************************************/
@@ -49,6 +49,7 @@ unsigned int currentMode = 0;
 /* Motor time control                               */
 /****************************************************/
 unsigned long timer, setTime;
+int motionInProgress = 0;
 /****************************************************/
 /* Last command values                              */
 /****************************************************/
@@ -58,7 +59,8 @@ deltaType infiniteDelta = {0,0,0,0,0};
 /****************************************************/
 /* Echo sound control                               */
 /****************************************************/
-unsigned int currentRange = 0;
+unsigned int currentRange = MAX_ECHO_RANGE_CM;
+unsigned int echoEmergencyRange = 0;
 unsigned int echoRepeat = 0;
 unsigned long echoRepeatTime;
 
@@ -253,12 +255,13 @@ Ret_Status processModeParameters () {
 }
 
 Ret_Status processEchoParameters () {
+    if( (bufHead->echo.repeat != 0) && (bufHead->echo.repeat < MIN_ECHO_REPEAT) ) return RET_ERR_ECHO_REPEAT;
+    if( bufHead->echo.emergency < 0 ) return RET_ERR_ECHO_EMERGENCY;
+
+    echoEmergencyRange = bufHead->echo.emergency;
     if( 0 == bufHead->echo.repeat ) {
       echoRepeat = 0;
       commandEcho();
-    }
-    else if( bufHead->echo.repeat < MIN_ECHO_REPEAT ) {
-      return RET_ERR_ECHO_REPEAT;
     }
     else {
       echoRepeat = bufHead->echo.repeat;
@@ -490,6 +493,7 @@ void commandDrive()
       }
       timer = lastCommand.time;
       setTime = millis();
+      motionInProgress = 1;
       if( DEBUG ) {
         Serial.print( "commandDrive: " ); Serial.print( lastCommand.time ); Serial.print( ' ' ); Serial.print( lastCommand.motor[0] ); Serial.print( ' ' ); Serial.print( lastCommand.motor[1] );
         Serial.print( ' ' ); Serial.print( lastCommand.motor[2] ); Serial.print( ' ' ); Serial.println( lastCommand.motor[3] );
@@ -507,7 +511,7 @@ void completeDrive()
   }
   timer = 0;
   lastCommand.time = 0;
-  if( bufHead == bufTail) { commandStatus(); }
+  motionInProgress = 0;
 }
 
 void commandStop()
@@ -535,7 +539,7 @@ void commandStatus()
     if( tempBufTail == bufCommand + COMMAND_BUF_LENGTH ) { tempBufTail = bufCommand; }
   }
 
-  Serial.print(KeyREADY); Serial.print(KeyDELIMITER); Serial.print(queue);
+  Serial.print(KeyREADY); Serial.print(KeyDELIMITER); Serial.print(motionInProgress); Serial.print(KeyDELIMITER); Serial.print(queue); Serial.print(KeyDELIMITER); Serial.print(echoEmergencyRange);
   Serial.print(KeyEOL1);
 
   Serial.print(KeyDRIVE); Serial.print(KeyDELIMITER); Serial.print(lastCommand.time);
@@ -546,7 +550,11 @@ void commandStatus()
   Serial.print(KeyEOL1);
 
   Serial.print(KeyMODE); Serial.print(KeyDELIMITER); Serial.print(currentMode); Serial.print(KeyDELIMITER); Serial.print(COMMAND_BUF_LENGTH-1);
+  Serial.print(KeyEOL1);
+
+  Serial.print(KeyECHO); Serial.print(KeyDELIMITER); Serial.print(currentRange);
   Serial.print(KeyEOL2); Serial.print(KeyEOL3);
+
 }
 
 void commandHello() {
@@ -562,10 +570,16 @@ void commandEcho() {
   delayMicroseconds(10);
   digitalWrite(soundTriggerPin, LOW);
   range = pulseIn(soundEchoPin, HIGH, (long)MAX_ECHO_RANGE_CM * SOUND_MS_PER_CM);
-  currentRange = range / SOUND_MS_PER_CM;
+  if( range > 0 ) { currentRange = range / SOUND_MS_PER_CM; }
 
-  Serial.print(KeyECHO); Serial.print(KeyDELIMITER); Serial.print(currentRange);
-  Serial.print(KeyEOL2); Serial.print(KeyEOL3);
+  if( currentMode & MODE_ECHO_AUTO_REPORT ) {
+    Serial.print(KeyECHO); Serial.print(KeyDELIMITER); Serial.print(currentRange);
+    Serial.print(KeyEOL2); Serial.print(KeyEOL3);
+  }
+  if( motionInProgress && (currentRange < echoEmergencyRange) ) { 
+    commandStop();
+    statusDecode( RET_WARN_EMERGENCY_STOP );
+  }
 }
 
 /***######################################################################################################################################################################***/

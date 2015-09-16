@@ -11,6 +11,7 @@ typedef enum Ret_Status {
     RET_WARN_STATUS_START = 10,
     RET_WARN_MAX_POWER_REACHED,
     RET_WARN_MIN_POWER,
+    RET_WARN_EMERGENCY_STOP,
     RET_WARN_UNKNOWN,
     RET_ERR_STATUS_START = 20,
     RET_ERR_QUEUE_OVERLOAD,
@@ -29,6 +30,7 @@ typedef enum Ret_Status {
     RET_ERR_PARAM_VALUE_MAX,
     RET_ERR_PARAM_VALUE_REPEAT,
     RET_ERR_SYSTEM_CRITICAL,
+    RET_ERR_ECHO_EMERGENCY,
     RET_ERR_UNKNOWN,
     RET_ERR_MAX_NUMBER,
 } Ret_Status;
@@ -77,6 +79,7 @@ typedef struct rotateType {
 
 typedef struct echoType {
     int repeat;
+    int emergency;
 } echoType;
 
 typedef struct echoEvType {
@@ -84,7 +87,9 @@ typedef struct echoEvType {
 } echoEvType;
 
 typedef struct readyEvType {
+    int motion;
     int queue;
+    int emergency;
 } readyEvType;
 
 
@@ -113,6 +118,7 @@ typedef enum modeEnum
 {
   MODE_MOTOR_DISABLE = 0x0001,
   MODE_FW_UPGRADE_ENABLE = 0x0002,
+  MODE_ECHO_AUTO_REPORT = 0x0004,
 } modeEnum;
 
 /****************************************************/
@@ -149,6 +155,7 @@ static const int INFINITE_COMMAND = 30000;
 static const int MAX_MOVE_COURSE = 360; // degrees
 static const int MAX_ECHO_RANGE_CM = 500;
 static const int MIN_ECHO_REPEAT = 50; // mS
+static const int ECHO_EMERGENCY_RANGE = 80; // cm
 
 /****************************************************/
 /* Vehicle geometry and Calibration constants       */
@@ -170,7 +177,8 @@ static const float CALIBRATION_MOVE_POWER_CM_S = 2.56; // Power per cm/S for MOV
 #define STRING_TABLE_GLOBAL \
 const char String_Warn1[] STRING_MEM_MODE = "Calibration exceeded max power. Replaced by possible value"; \
 const char String_Warn2[] STRING_MEM_MODE = "Too low power. Zero power used instead"; \
-const char String_Warn3[] STRING_MEM_MODE = "Unknown Warning"; \
+const char String_Warn3[] STRING_MEM_MODE = "Emergency stop"; \
+const char String_Warn4[] STRING_MEM_MODE = "Unknown Warning"; \
 const char String_Error1[] STRING_MEM_MODE = "Buffer Overload"; \
 const char String_Error2[] STRING_MEM_MODE = "No Terminator"; \
 const char String_Error3[] STRING_MEM_MODE = "Wrong Command"; \
@@ -187,7 +195,8 @@ const char String_Error13[] STRING_MEM_MODE = "Too small echo repeat time"; \
 const char String_Error14[] STRING_MEM_MODE = "Too large parameter value"; \
 const char String_Error15[] STRING_MEM_MODE = "Negative Repeat Value"; \
 const char String_Error16[] STRING_MEM_MODE = "Critical System Error"; \
-const char String_Error17[] STRING_MEM_MODE = "Unknown Error"; \
+const char String_Error17[] STRING_MEM_MODE = "Negative Echo Emergency Stop Range"; \
+const char String_Error18[] STRING_MEM_MODE = "Unknown Error"; \
 \
 const char* const string_table_warn[] STRING_MEM_MODE = {String_Warn1, String_Warn2, String_Warn3}; \
 const char* const string_table_error[] STRING_MEM_MODE = {String_Error1, String_Error2, String_Error3, String_Error4, String_Error5, String_Error6, String_Error7, String_Error8, \
