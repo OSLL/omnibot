@@ -47,6 +47,14 @@ const int MAX_STREAM_LENGTH = 255;
 const int COMMAND_BUF_LENGTH = 20;
 
 /****************************************************/
+/* ISR                                              */
+/****************************************************/
+const unsigned char ISR_ECHO_LAST = 2;
+const unsigned char ISR_ECHO_OFF = 3;
+#define PCMSK_MASK(x) (bit( ((x)%14) %8))
+#define PCISR_BIT(x) ( (( (((x) +8)%22) +8)%24) /8)
+
+/****************************************************/
 /* Function declarations                            */
 /****************************************************/
 int readStream(char *buf, int len);

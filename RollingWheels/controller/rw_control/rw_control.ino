@@ -12,7 +12,7 @@ const int DEBUG = 0;
 /****************************************************/
 STRING_TABLE_GLOBAL
 
-const char String_Hello[] STRING_MEM_MODE = "Rolling Wheels Ard. ver:0.029 (echo stop)";
+const char String_Hello[] STRING_MEM_MODE = "Rolling Wheels Ard. ver:0.030 (echo isr)";
 const char* const string_table_local[] STRING_MEM_MODE = {String_Hello};
 
 /****************************************************/
@@ -63,6 +63,8 @@ unsigned int currentRange = MAX_ECHO_RANGE_CM;
 unsigned int echoEmergencyRange = 0;
 unsigned int echoRepeat = 0;
 unsigned long echoRepeatTime;
+unsigned long volatile isrEchoTime[ISR_ECHO_LAST];
+unsigned char volatile isrEchoIndex = ISR_ECHO_OFF;
 
 /***######################################################################################################################################################################***/
 
@@ -120,6 +122,15 @@ void setup() {
   // Board reset for FW upgrade pin
   digitalWrite(forceResetPin, HIGH);
   pinMode( forceResetPin, OUTPUT);
+
+  // Setup interrupts
+  switch( PCISR_BIT(soundEchoPin) ) { // Specify pin by mask
+    case 0: PCMSK0 |= PCMSK_MASK(soundEchoPin); break;
+    case 1: PCMSK1 |= PCMSK_MASK(soundEchoPin); break;
+    case 2: PCMSK2 |= PCMSK_MASK(soundEchoPin); break;
+  }
+  PCIFR  |= bit(PCIF0) | bit(PCIF1) | bit(PCIF2);   // clear any outstanding interrupts
+  PCICR  |= bit(PCISR_BIT(soundEchoPin));   // enable pins change interrupts
 }
 
 /***######################################################################################################################################################################***/
@@ -564,22 +575,31 @@ void commandHello() {
 }
 
 void commandEcho() {
-  long range = 0;
-
+  isrEchoIndex = 0;
   digitalWrite(soundTriggerPin, HIGH);
   delayMicroseconds(10);
   digitalWrite(soundTriggerPin, LOW);
-  range = pulseIn(soundEchoPin, HIGH, (long)MAX_ECHO_RANGE_CM * SOUND_MS_PER_CM);
-  if( range > 0 ) { currentRange = range / SOUND_MS_PER_CM; }
+}
 
-  if( currentMode & MODE_ECHO_AUTO_REPORT ) {
-    Serial.print(KeyECHO); Serial.print(KeyDELIMITER); Serial.print(currentRange);
-    Serial.print(KeyEOL2); Serial.print(KeyEOL3);
-  }
-  if( motionInProgress && (currentRange < echoEmergencyRange) ) { 
-    commandStop();
-    statusDecode( RET_WARN_EMERGENCY_STOP );
-  }
+void completeEcho() {
+    unsigned long range = isrEchoTime[1] - isrEchoTime[0];
+    isrEchoIndex = ISR_ECHO_OFF;
+    if( range < (long)MAX_ECHO_RANGE_CM * SOUND_MICROS_PER_CM ) { currentRange = range / SOUND_MICROS_PER_CM; }
+    if( DEBUG ) { Serial.print(isrEchoTime[0]); Serial.print(KeyDELIMITER); Serial.print(isrEchoTime[1]); Serial.print(KeyDELIMITER); Serial.print(range); Serial.print(KeyDELIMITER); Serial.println(currentRange); }
+
+    if( currentMode & MODE_ECHO_AUTO_REPORT ) {
+        Serial.print(KeyECHO); Serial.print(KeyDELIMITER); Serial.print(currentRange);
+        Serial.print(KeyEOL2); Serial.print(KeyEOL3);
+    }
+    if( motionInProgress && (currentRange < echoEmergencyRange) ) { 
+        commandStop();
+        statusDecode( RET_WARN_EMERGENCY_STOP );
+    }
+}
+
+ISR (PCINT0_vect)
+{
+    if( isrEchoIndex < ISR_ECHO_LAST ) { isrEchoTime[isrEchoIndex++] = micros(); }
 }
 
 /***######################################################################################################################################################################***/
@@ -633,6 +653,9 @@ void loop() {
   if( echoRepeat && (millis() > echoRepeatTime) ) {
     commandEcho();
     echoRepeatTime += echoRepeat; 
+  }
+  if( isrEchoIndex == ISR_ECHO_LAST ) {
+    completeEcho();
   }
   if( timer == 0 )
   {

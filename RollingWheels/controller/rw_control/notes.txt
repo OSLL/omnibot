@@ -1,3 +1,7 @@
+ver.30:
+- Use interrupts to measure ultrasonic echo instead of blocking call pulceIn.
+  This decreased maximum blocking waiting time in main loop().
+
 ver.29:
 - emergency stop based on echo locator reported range
 

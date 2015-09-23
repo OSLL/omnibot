@@ -165,7 +165,7 @@ static const int ECHO_EMERGENCY_RANGE = 80; // cm
 #define CONST_DEG_PER_PI (180)
 #define CAR_RADIUS (9.6)
 static const float CAR_CM_PER_DEG = CAR_RADIUS * CONST_PI / CONST_DEG_PER_PI; //0.168
-static const int SOUND_MS_PER_CM = 58; // doubled because the sound forward plus back way
+static const int SOUND_MICROS_PER_CM = 58; // doubled because the sound forward plus back way
 static const int MIN_POWER_ROTATION = 50;
 static const int MIN_POWER_MOVE = 70;
 static const float CALIBRATION_ROTATE_POWER_CM_S = 2.; // Power per cm/S for ROTATE command
