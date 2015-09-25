@@ -30,7 +30,7 @@ typedef enum Ret_Status {
     RET_ERR_PARAM_VALUE_MAX,
     RET_ERR_PARAM_VALUE_REPEAT,
     RET_ERR_SYSTEM_CRITICAL,
-    RET_ERR_ECHO_EMERGENCY,
+    RET_ERR_ECHO_DISTANCE,
     RET_ERR_UNKNOWN,
     RET_ERR_MAX_NUMBER,
 } Ret_Status;
@@ -53,7 +53,7 @@ typedef struct deltaType {
     int repeat;
 } deltaType;
 
-typedef moveType lastEvType;
+typedef moveType moveEvType;
 
 typedef struct driveType {
     int time;
@@ -65,11 +65,14 @@ typedef driveType driveEvType;
 typedef struct modeType {
     int set;
     int reset;
+    int echoRepeat;
+    int echoNextSensor;
 } modeType;
 
 typedef struct modeEvType {
     int mode;
-    int queue;
+    int echoRepeat;
+    int echoNextSensor;
 } modeEvType;
 
 typedef struct rotateType {
@@ -78,18 +81,29 @@ typedef struct rotateType {
 } rotateType;
 
 typedef struct echoType {
-    int repeat;
+    int sensors;
+    int low;
+    int high;
     int emergency;
 } echoType;
 
 typedef struct echoEvType {
+    int sensor;
+    int low;
+    int high;
+    int emergency;
     int range;
 } echoEvType;
+
+typedef struct rangeEvType {
+    int sensor;
+    int range;
+} rangeEvType;
 
 typedef struct readyEvType {
     int motion;
     int queue;
-    int emergency;
+    int queueMax;
 } readyEvType;
 
 
@@ -100,7 +114,7 @@ typedef union paramType {
   };
   moveType move;
   deltaType delta;
-  lastEvType lastEv;
+  moveEvType moveEv;
   driveType drive;
   driveEvType driveEv;
   modeType mode;
@@ -116,9 +130,12 @@ typedef union paramType {
 /****************************************************/
 typedef enum modeEnum
 {
-  MODE_MOTOR_DISABLE = 0x0001,
-  MODE_FW_UPGRADE_ENABLE = 0x0002,
-  MODE_ECHO_AUTO_REPORT = 0x0004,
+  MODE_ECHO_0 = 0x0001,
+  MODE_ECHO_1 = 0x0002,
+  MODE_ECHO_2 = 0x0004,
+  MODE_ECHO_3 = 0x0008,
+  MODE_MOTOR_DISABLE = 0x0010,
+  MODE_FW_UPGRADE_ENABLE = 0x0020,
 } modeEnum;
 
 /****************************************************/
@@ -141,7 +158,7 @@ static const char KeyEOL3 = 0x0A; // LF
 static const char KeyREADY[] = "READY";
 static const char KeyERROR[] = "ERROR";
 static const char KeyWARN[] = "WARN";
-static const char KeyLAST[] = "LAST";
+static const char KeyRANGE[] = "RANGE";
 
 /****************************************************/
 /* Vehicle limits                                   */
@@ -154,7 +171,7 @@ static const int MAX_MOVE_DISTANCE = 1000; // cm; MAX_COMMAND_DISTANCE shall be 
 static const int INFINITE_COMMAND = 30000;
 static const int MAX_MOVE_COURSE = 360; // degrees
 static const int MAX_ECHO_RANGE_CM = 500;
-static const int MIN_ECHO_REPEAT = 50; // mS
+static const int MIN_ECHO_REPEAT = 40; // mS
 static const int ECHO_EMERGENCY_RANGE = 80; // cm
 
 /****************************************************/
@@ -195,7 +212,7 @@ const char String_Error13[] STRING_MEM_MODE = "Too small echo repeat time"; \
 const char String_Error14[] STRING_MEM_MODE = "Too large parameter value"; \
 const char String_Error15[] STRING_MEM_MODE = "Negative Repeat Value"; \
 const char String_Error16[] STRING_MEM_MODE = "Critical System Error"; \
-const char String_Error17[] STRING_MEM_MODE = "Negative Echo Emergency Stop Range"; \
+const char String_Error17[] STRING_MEM_MODE = "Wrong Echo Distance Range"; \
 const char String_Error18[] STRING_MEM_MODE = "Unknown Error"; \
 \
 const char* const string_table_warn[] STRING_MEM_MODE = {String_Warn1, String_Warn2, String_Warn3}; \

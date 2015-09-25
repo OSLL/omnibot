@@ -12,7 +12,7 @@ const int DEBUG = 0;
 /****************************************************/
 STRING_TABLE_GLOBAL
 
-const char String_Hello[] STRING_MEM_MODE = "Rolling Wheels Ard. ver:0.030 (echo isr)";
+const char String_Hello[] STRING_MEM_MODE = "Rolling Wheels Ard. ver:0.031 (four ultrasonics)";
 const char* const string_table_local[] STRING_MEM_MODE = {String_Hello};
 
 /****************************************************/
@@ -59,10 +59,10 @@ deltaType infiniteDelta = {0,0,0,0,0};
 /****************************************************/
 /* Echo sound control                               */
 /****************************************************/
-unsigned int currentRange = MAX_ECHO_RANGE_CM;
-unsigned int echoEmergencyRange = 0;
-unsigned int echoRepeat = 0;
+echoType echoConfig[ECHO_SENSORS] = {MAX_ECHO_RANGE_CM,0,0,0, MAX_ECHO_RANGE_CM,0,0,0, MAX_ECHO_RANGE_CM,0,0,0, MAX_ECHO_RANGE_CM,0,0,0};
 unsigned long echoRepeatTime;
+int echoRepeat = MIN_ECHO_REPEAT;
+int echoNextSensor = MIN_ECHO_REPEAT;
 unsigned long volatile isrEchoTime[ISR_ECHO_LAST];
 unsigned char volatile isrEchoIndex = ISR_ECHO_OFF;
 
@@ -79,8 +79,7 @@ void setup() {
   Ret_Status ret;
   
   // Motor pins
-  for( int ii=0; ii<4; ii++ )
-  {
+  for( ii=0; ii<4; ii++ ) {
     digitalWrite(motorPin[ii], LOW);
     digitalWrite(motorPwmPin[ii], LOW);
     pinMode(motorPin[ii], OUTPUT);
@@ -91,13 +90,15 @@ void setup() {
   pinMode( forceResetPin, OUTPUT);
 
   // Ultrasonic pins
-//  digitalWrite(soundGroundPin, LOW);
-  digitalWrite(soundPowerPin, HIGH);
-  digitalWrite(soundTriggerPin, LOW);
-//  pinMode( soundGroundPin, OUTPUT);
-  pinMode( soundPowerPin, OUTPUT);
-  pinMode( soundTriggerPin, OUTPUT);
-  pinMode( soundEchoPin, INPUT);
+  for( ii=0; ii<ECHO_SENSORS; ii++ ) {
+      digitalWrite(soundGroundPin[ii], LOW);
+      digitalWrite(soundPowerPin[ii], HIGH);
+      digitalWrite(soundTriggerPin[ii], LOW);
+      pinMode( soundGroundPin[ii], OUTPUT);
+      pinMode( soundPowerPin[ii], OUTPUT);
+      pinMode( soundTriggerPin[ii], OUTPUT);
+      pinMode( soundEchoPin[ii], INPUT);
+  }
 
   // Initialize serial:
   Serial.begin(115200);
@@ -122,15 +123,6 @@ void setup() {
   // Board reset for FW upgrade pin
   digitalWrite(forceResetPin, HIGH);
   pinMode( forceResetPin, OUTPUT);
-
-  // Setup interrupts
-  switch( PCISR_BIT(soundEchoPin) ) { // Specify pin by mask
-    case 0: PCMSK0 |= PCMSK_MASK(soundEchoPin); break;
-    case 1: PCMSK1 |= PCMSK_MASK(soundEchoPin); break;
-    case 2: PCMSK2 |= PCMSK_MASK(soundEchoPin); break;
-  }
-  PCIFR  |= bit(PCIF0) | bit(PCIF1) | bit(PCIF2);   // clear any outstanding interrupts
-  PCICR  |= bit(PCISR_BIT(soundEchoPin));   // enable pins change interrupts
 }
 
 /***######################################################################################################################################################################***/
@@ -260,23 +252,36 @@ Ret_Status validateRotateParameters () {
 }
 
 Ret_Status processModeParameters () {
+    unsigned int oldMode = currentMode;
+    if( (bufHead->mode.echoRepeat != 0) && (bufHead->mode.echoRepeat < MIN_ECHO_REPEAT) ) return RET_ERR_ECHO_REPEAT;
+    if( (bufHead->mode.echoNextSensor != 0) && (bufHead->mode.echoNextSensor < MIN_ECHO_REPEAT) ) return RET_ERR_ECHO_REPEAT;
+    
     currentMode |= bufHead->mode.set;
     currentMode &= ~(bufHead->mode.reset);
+
+    // If all echo sensors were disabled and any sensor is enabling then set echoRepeatTime to current time
+    if( !(oldMode & (MODE_ECHO_0 | MODE_ECHO_1 | MODE_ECHO_2 | MODE_ECHO_3)) ) {
+        if( currentMode & (MODE_ECHO_0 | MODE_ECHO_1 | MODE_ECHO_2 | MODE_ECHO_3) ) { echoRepeatTime = millis(); }
+    }
+    if( bufHead->mode.echoRepeat != 0 ) { echoRepeat = bufHead->mode.echoRepeat; }
+    if( bufHead->mode.echoNextSensor != 0 ) { echoNextSensor = bufHead->mode.echoNextSensor; }
+    
     return RET_SUCCESS;
 }
 
 Ret_Status processEchoParameters () {
-    if( (bufHead->echo.repeat != 0) && (bufHead->echo.repeat < MIN_ECHO_REPEAT) ) return RET_ERR_ECHO_REPEAT;
-    if( bufHead->echo.emergency < 0 ) return RET_ERR_ECHO_EMERGENCY;
-
-    echoEmergencyRange = bufHead->echo.emergency;
-    if( 0 == bufHead->echo.repeat ) {
-      echoRepeat = 0;
-      commandEcho();
-    }
-    else {
-      echoRepeat = bufHead->echo.repeat;
-      echoRepeatTime = millis();
+    int ii;
+    if( (bufHead->echo.low < 0) || (bufHead->echo.low > MAX_ECHO_RANGE_CM) ) return RET_ERR_ECHO_DISTANCE;
+    if( (bufHead->echo.high < 0) || (bufHead->echo.high > MAX_ECHO_RANGE_CM) ) return RET_ERR_ECHO_DISTANCE;
+    if( (bufHead->echo.emergency < 0) || (bufHead->echo.emergency > MAX_ECHO_RANGE_CM) ) return RET_ERR_ECHO_DISTANCE;
+    bufHead->echo.sensors &= 0x000F;
+    
+    for( ii=0; ii<ECHO_SENSORS; ii++ ) {
+      if( bufHead->echo.sensors & (0x0001 << ii) ) {
+        echoConfig[ii].low = bufHead->echo.low;
+        echoConfig[ii].high = bufHead->echo.high;
+        echoConfig[ii].emergency = bufHead->echo.emergency;
+      }
     }
     return RET_SUCCESS;
 }
@@ -540,6 +545,7 @@ void commandStatus()
 {
   paramType *tempBufTail;
   unsigned int queue = 0;
+  int ii;
 
   // Look through all commands in the circular queue and add time from each of them
   tempBufTail = bufTail;
@@ -550,22 +556,25 @@ void commandStatus()
     if( tempBufTail == bufCommand + COMMAND_BUF_LENGTH ) { tempBufTail = bufCommand; }
   }
 
-  Serial.print(KeyREADY); Serial.print(KeyDELIMITER); Serial.print(motionInProgress); Serial.print(KeyDELIMITER); Serial.print(queue); Serial.print(KeyDELIMITER); Serial.print(echoEmergencyRange);
+  Serial.print(KeyREADY); Serial.print(KeyDELIMITER); Serial.print(motionInProgress); Serial.print(KeyDELIMITER); Serial.print(queue); Serial.print(KeyDELIMITER); Serial.print(COMMAND_BUF_LENGTH-1);
   Serial.print(KeyEOL1);
 
   Serial.print(KeyDRIVE); Serial.print(KeyDELIMITER); Serial.print(lastCommand.time);
   for( int ii=0; ii<4; ii++ ) { Serial.print(KeyDELIMITER); Serial.print(lastCommand.motor[ii]); }
   Serial.print(KeyEOL1);
   
-  Serial.print(KeyLAST); Serial.print(KeyDELIMITER); Serial.print(lastMove.distance); Serial.print(KeyDELIMITER); Serial.print(lastMove.velocity); Serial.print(KeyDELIMITER); Serial.print(lastMove.course); Serial.print(KeyDELIMITER); Serial.print(lastMove.curve);
+  Serial.print(KeyMOVE); Serial.print(KeyDELIMITER); Serial.print(lastMove.distance); Serial.print(KeyDELIMITER); Serial.print(lastMove.velocity); Serial.print(KeyDELIMITER); Serial.print(lastMove.course); Serial.print(KeyDELIMITER); Serial.print(lastMove.curve);
   Serial.print(KeyEOL1);
 
-  Serial.print(KeyMODE); Serial.print(KeyDELIMITER); Serial.print(currentMode); Serial.print(KeyDELIMITER); Serial.print(COMMAND_BUF_LENGTH-1);
-  Serial.print(KeyEOL1);
-
-  Serial.print(KeyECHO); Serial.print(KeyDELIMITER); Serial.print(currentRange);
+  Serial.print(KeyMODE); Serial.print(KeyDELIMITER); Serial.print(currentMode); Serial.print(KeyDELIMITER); Serial.print(echoRepeat); Serial.print(KeyDELIMITER); Serial.print(echoNextSensor);
   Serial.print(KeyEOL2); Serial.print(KeyEOL3);
 
+  for( ii=0; ii<ECHO_SENSORS; ii++ ) {
+    Serial.print(KeyECHO); Serial.print(KeyDELIMITER); Serial.print(ii); Serial.print(KeyDELIMITER); Serial.print(echoConfig[ii].low); Serial.print(KeyDELIMITER); Serial.print(echoConfig[ii].high);
+    Serial.print(KeyDELIMITER); Serial.print(echoConfig[ii].emergency); Serial.print(KeyDELIMITER); Serial.print(echoConfig[ii].sensors);
+    Serial.print(KeyEOL1);
+  }
+  Serial.print(KeyEOL2); Serial.print(KeyEOL3);
 }
 
 void commandHello() {
@@ -574,30 +583,69 @@ void commandHello() {
   Serial.print(KeyHELLO); Serial.print(KeyDELIMITER); Serial.println(line_buf);
 }
 
-void commandEcho() {
-  isrEchoIndex = 0;
-  digitalWrite(soundTriggerPin, HIGH);
+void commandEcho(int num) {
+  switch( PCISR_BIT(soundEchoPin[num]) ) { // Specify pin by mask and enable ISRs for corresponded pin
+        case 0: PCMSK0 |= PCMSK_MASK(soundEchoPin[num]); break;
+        case 1: PCMSK1 |= PCMSK_MASK(soundEchoPin[num]); break;
+        case 2: PCMSK2 |= PCMSK_MASK(soundEchoPin[num]); break;
+  }
+  PCIFR  |= bit(PCISR_BIT(soundEchoPin[num])); // clear any outstanding interrupts
+  PCICR  |= bit(PCISR_BIT(soundEchoPin[num])); // enable pins change interrupts for corresponded group
+  isrEchoIndex = 0; // Unblock the ISR logic
+
+  // Trigger ultrasonic sensor
+  digitalWrite(soundTriggerPin[num], HIGH);
   delayMicroseconds(10);
-  digitalWrite(soundTriggerPin, LOW);
+  digitalWrite(soundTriggerPin[num], LOW);
 }
 
-void completeEcho() {
-    unsigned long range = isrEchoTime[1] - isrEchoTime[0];
-    isrEchoIndex = ISR_ECHO_OFF;
-    if( range < (long)MAX_ECHO_RANGE_CM * SOUND_MICROS_PER_CM ) { currentRange = range / SOUND_MICROS_PER_CM; }
-    if( DEBUG ) { Serial.print(isrEchoTime[0]); Serial.print(KeyDELIMITER); Serial.print(isrEchoTime[1]); Serial.print(KeyDELIMITER); Serial.print(range); Serial.print(KeyDELIMITER); Serial.println(currentRange); }
-
-    if( currentMode & MODE_ECHO_AUTO_REPORT ) {
-        Serial.print(KeyECHO); Serial.print(KeyDELIMITER); Serial.print(currentRange);
-        Serial.print(KeyEOL2); Serial.print(KeyEOL3);
+void completeEcho(int num) {
+    int report = 0;
+    unsigned long range;
+    PCICR  &= ~bit(PCISR_BIT(soundEchoPin[num])); // disable pins change interrupts for corresponded group
+    switch( PCISR_BIT(soundEchoPin[num]) ) { // Specify pin by mask and disable ISRs for corresponded pin
+          case 0: PCMSK0 &= ~PCMSK_MASK(soundEchoPin[num]); break;
+          case 1: PCMSK1 &= ~PCMSK_MASK(soundEchoPin[num]); break;
+          case 2: PCMSK2 &= ~PCMSK_MASK(soundEchoPin[num]); break;
     }
-    if( motionInProgress && (currentRange < echoEmergencyRange) ) { 
-        commandStop();
-        statusDecode( RET_WARN_EMERGENCY_STOP );
+    PCIFR  |= bit(PCISR_BIT(soundEchoPin[num])); // clear any outstanding interrupts
+    range = isrEchoTime[1] - isrEchoTime[0];
+    isrEchoIndex = ISR_ECHO_OFF; // Confirm we completed reading echo range
+
+    if( range < (long)MAX_ECHO_RANGE_CM * SOUND_MICROS_PER_CM ) {
+      echoConfig[num].sensors = range / SOUND_MICROS_PER_CM;
+      
+      if( motionInProgress && (echoConfig[num].sensors < echoConfig[num].emergency) ) {
+          commandStop();
+          statusDecode( RET_WARN_EMERGENCY_STOP );
+      }
+      
+      if( echoConfig[num].low < echoConfig[num].high ) {
+          if( (echoConfig[num].sensors >= echoConfig[num].low) && (echoConfig[num].sensors <= echoConfig[num].high) ) { report = 1; }
+      }
+      else if( echoConfig[num].low > echoConfig[num].high ) {
+          if( (echoConfig[num].sensors >= echoConfig[num].low) || (echoConfig[num].sensors <= echoConfig[num].high) ) { report = 1; }
+      }
+    }
+    if( DEBUG ) { Serial.print(isrEchoTime[0]); Serial.print(KeyDELIMITER); Serial.print(isrEchoTime[1]); Serial.print(KeyDELIMITER); Serial.print(range); Serial.print(KeyDELIMITER); Serial.println(echoConfig[num].sensors); }
+
+    if( report ) {
+        Serial.print(KeyRANGE); Serial.print(KeyDELIMITER); Serial.print(num); Serial.print(KeyDELIMITER); Serial.print(echoConfig[num].sensors);
+        Serial.print(KeyEOL2); Serial.print(KeyEOL3);
     }
 }
 
 ISR (PCINT0_vect)
+{
+    if( isrEchoIndex < ISR_ECHO_LAST ) { isrEchoTime[isrEchoIndex++] = micros(); }
+}
+
+ISR (PCINT1_vect)
+{
+    if( isrEchoIndex < ISR_ECHO_LAST ) { isrEchoTime[isrEchoIndex++] = micros(); }
+}
+
+ISR (PCINT2_vect)
 {
     if( isrEchoIndex < ISR_ECHO_LAST ) { isrEchoTime[isrEchoIndex++] = micros(); }
 }
@@ -649,13 +697,22 @@ void statusDecode( Ret_Status ret )
 /****************************************************/
 
 void loop() {
-
-  if( echoRepeat && (millis() > echoRepeatTime) ) {
-    commandEcho();
-    echoRepeatTime += echoRepeat; 
+  static int sensor = 0;
+  int ii, rotate = 0;
+  unsigned long ms = millis();
+  if( ms > echoRepeatTime ) {
+    for( ii=0; ii<ECHO_SENSORS; ii++ ) {
+      if( ++sensor == ECHO_SENSORS ) { sensor = 0; rotate = 1;}
+      if( currentMode & (0x0001 << sensor) ) {
+        commandEcho(sensor);
+        if( rotate ) { echoRepeatTime = ms + echoRepeat; }
+        else { echoRepeatTime = ms + echoNextSensor; }
+        break;
+      }
+    }
   }
   if( isrEchoIndex == ISR_ECHO_LAST ) {
-    completeEcho();
+    completeEcho(sensor);
   }
   if( timer == 0 )
   {

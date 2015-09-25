@@ -29,22 +29,23 @@ static calibrationType const calRotation = {30, 65, 13};
 static calibrationType const calMove = {60, 200, 40};
 
 /****************************************************/
+/* Limits                                           */
+/****************************************************/
+const int MAX_STREAM_LENGTH = 255;
+const int COMMAND_BUF_LENGTH = 20;
+const int ECHO_SENSORS = 4;
+
+/****************************************************/
 /* Pins                                             */
 /****************************************************/
 static const unsigned int forceResetPin = 10;
 static const unsigned char motorPin[4] = {2, 4, 7, 8 };
 static const unsigned char motorPwmPin[4] = {3, 5, 6, 9 };
-static const unsigned int soundPowerPin = 13;
-//static const unsigned int soundGroundPin = A2;
-static const unsigned int soundEchoPin = 12;
-static const unsigned int soundTriggerPin = 11;
+static const unsigned char soundPowerPin[ECHO_SENSORS] = {13, 15, 13, 13};
+static const unsigned char soundGroundPin[ECHO_SENSORS] = {14, 14, 14, 14};
+static const unsigned char soundEchoPin[ECHO_SENSORS] = {12, 16, 12, 12};
+static const unsigned char soundTriggerPin[ECHO_SENSORS] = {11, 17, 11, 11};
 static const unsigned int testLoadPin = 10;
-
-/****************************************************/
-/* Limits                                           */
-/****************************************************/
-const int MAX_STREAM_LENGTH = 255;
-const int COMMAND_BUF_LENGTH = 20;
 
 /****************************************************/
 /* ISR                                              */
@@ -79,6 +80,7 @@ void completeDrive(void);
 void commandStop(void);
 void commandStatus(void);
 void commandHello(void);
-void commandEcho(void);
+void commandEcho(int num);
+void completeEcho(int num);
 
 
