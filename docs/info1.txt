@@ -1,0 +1,38 @@
+Useful resources:
+GPIO, SPI, I2C and other devices: http://www.siongboon.com/projects/2013-07-08_raspberry_pi/index.html
+using wiringPi: https://projects.drogon.net/
+Serial API: http://pyserial.sourceforge.net/pyserial_api.html
+
+25-Aug-2015:
+  1. modified /boot/config.txt:
+    disable_overscan=1
+    hdmi_group=1
+    hdmi_mode=16
+  2. Added WiFi config: TBD
+30-Aug-2015:
+  1. modified /etc/inittab to remove ttyAMA0 login console
+  2. modified /boot/cmdline.txt to remove ttyAMA0 from linux command line
+  3. install wiringpi2 (http://raspi.tv/how-to-install-wiringpi2-for-python-on-the-raspberry-pi)
+    sudo apt-get update
+    sudo apt-get install python-dev python-pip
+    sudo pip install wiringpi2
+    sudo pip install --upgrade pip
+  4. Install python3
+    sudo apt-get install python3
+  5. Install wiringPi C library (http://wiringpi.com/)
+    mkdir ~/git
+    cd ~/git
+    git clone git://git.drogon.net/wiringPi
+    cd wiringPi
+    git pull origin
+    ./build
+  note: use -lwiringPi (and maybe -lwiringPiDev) to link library
+  Image: raspberiPi_2.img
+31-Aug-2015
+  1. sudo apt-get install minicom
+10-Sep-2015
+  1. install Arduino IDE
+    sudo apt-get update
+    sudo apt-get install arduino
+  2. Added file /etc/udev/rules.d/80-serial.rules
+
