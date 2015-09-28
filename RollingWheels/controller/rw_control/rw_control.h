@@ -38,20 +38,21 @@ const int ECHO_SENSORS = 4;
 /****************************************************/
 /* Pins                                             */
 /****************************************************/
-static const unsigned int forceResetPin = 10;
+static const unsigned int sharedTestResetPin = 10;
 static const unsigned char motorPin[4] = {2, 4, 7, 8 };
 static const unsigned char motorPwmPin[4] = {3, 5, 6, 9 };
-static const unsigned char soundPowerPin[ECHO_SENSORS] = {13, 15, 13, 13};
-static const unsigned char soundGroundPin[ECHO_SENSORS] = {14, 14, 14, 14};
-static const unsigned char soundEchoPin[ECHO_SENSORS] = {12, 16, 12, 12};
-static const unsigned char soundTriggerPin[ECHO_SENSORS] = {11, 17, 11, 11};
-static const unsigned int testLoadPin = 10;
+static const unsigned char soundEchoPin[ECHO_SENSORS] = {14, 15, 16, 17};
+static const unsigned char soundTriggerPin[ECHO_SENSORS] = {11, 18, 19, 12};
 
 /****************************************************/
 /* ISR                                              */
 /****************************************************/
-const unsigned char ISR_ECHO_LAST = 2;
-const unsigned char ISR_ECHO_OFF = 3;
+typedef enum echoISREnum {
+    ECHO_ISR_START = 0,
+    ECHO_ISR_LAST = 2,
+    ECHO_ISR_COMPLETE = 3,
+} echoISREnum;
+
 #define PCMSK_MASK(x) (bit( ((x)%14) %8))
 #define PCISR_BIT(x) ( (( (((x) +8)%22) +8)%24) /8)
 
@@ -73,8 +74,8 @@ void processRotateParameters (void);
 Ret_Status processModeParameters (void);
 Ret_Status processEchoParameters (void);
 float calibration(float power, const calibrationType cal);
-void commandPrepare(void);
 void statusDecode(Ret_Status ret);
+void prepareDrive(void);
 void commandDrive(void);
 void completeDrive(void);
 void commandStop(void);

@@ -12,7 +12,7 @@ const int DEBUG = 0;
 /****************************************************/
 STRING_TABLE_GLOBAL
 
-const char String_Hello[] STRING_MEM_MODE = "Rolling Wheels Ard. ver:0.031 (four ultrasonics)";
+const char String_Hello[] STRING_MEM_MODE = "Rolling Wheels Ard. ver:0.031.1 (four ultrasonics)";
 const char* const string_table_local[] STRING_MEM_MODE = {String_Hello};
 
 /****************************************************/
@@ -63,8 +63,8 @@ echoType echoConfig[ECHO_SENSORS] = {MAX_ECHO_RANGE_CM,0,0,0, MAX_ECHO_RANGE_CM,
 unsigned long echoRepeatTime;
 int echoRepeat = MIN_ECHO_REPEAT;
 int echoNextSensor = MIN_ECHO_REPEAT;
-unsigned long volatile isrEchoTime[ISR_ECHO_LAST];
-unsigned char volatile isrEchoIndex = ISR_ECHO_OFF;
+unsigned long volatile isrEchoTime[ECHO_ISR_LAST];
+unsigned char volatile isrEchoIndex = ECHO_ISR_COMPLETE;
 
 /***######################################################################################################################################################################***/
 
@@ -85,17 +85,10 @@ void setup() {
     pinMode(motorPin[ii], OUTPUT);
     pinMode(motorPwmPin[ii], OUTPUT);
   }
-  // Board reset for FW upgrade pin
-  digitalWrite(forceResetPin, HIGH);
-  pinMode( forceResetPin, OUTPUT);
 
   // Ultrasonic pins
   for( ii=0; ii<ECHO_SENSORS; ii++ ) {
-      digitalWrite(soundGroundPin[ii], LOW);
-      digitalWrite(soundPowerPin[ii], HIGH);
       digitalWrite(soundTriggerPin[ii], LOW);
-      pinMode( soundGroundPin[ii], OUTPUT);
-      pinMode( soundPowerPin[ii], OUTPUT);
       pinMode( soundTriggerPin[ii], OUTPUT);
       pinMode( soundEchoPin[ii], INPUT);
   }
@@ -110,8 +103,8 @@ void setup() {
   commandStop();
 
   // Test load
-  pinMode( testLoadPin, INPUT_PULLUP); // Shared with forceResetPin !!!!!
-  if( digitalRead(testLoadPin) == LOW ) {
+  pinMode( sharedTestResetPin, INPUT_PULLUP);
+  if( digitalRead(sharedTestResetPin) == LOW ) {
       for(ii=0; ii<test_load_num; ii++) {
         strcpy_P(test_buf, (char*)pgm_read_word(&(test_table[ii])));
         if( (ret = parceCommand(test_buf)) != RET_SUCCESS ) {
@@ -121,8 +114,8 @@ void setup() {
   }
 
   // Board reset for FW upgrade pin
-  digitalWrite(forceResetPin, HIGH);
-  pinMode( forceResetPin, OUTPUT);
+  digitalWrite(sharedTestResetPin, HIGH);
+  pinMode( sharedTestResetPin, OUTPUT);
 }
 
 /***######################################################################################################################################################################***/
@@ -286,12 +279,56 @@ Ret_Status processEchoParameters () {
     return RET_SUCCESS;
 }
 
-/***######################################################################################################################################################################***/
+/***## IMMEDIATE EXECUTION COMMANDS #############################################################################################################################################***/
+
+void commandStatus()
+{
+  paramType *tempBufTail;
+  unsigned int queue = 0;
+  int ii;
+
+  // Look through all commands in the circular queue and add time from each of them
+  tempBufTail = bufTail;
+  while( tempBufTail != bufHead )
+  {
+    queue++;
+    tempBufTail++;
+    if( tempBufTail == bufCommand + COMMAND_BUF_LENGTH ) { tempBufTail = bufCommand; }
+  }
+
+  Serial.print(KeyREADY); Serial.print(KeyDELIMITER); Serial.print(motionInProgress); Serial.print(KeyDELIMITER); Serial.print(queue); Serial.print(KeyDELIMITER); Serial.print(COMMAND_BUF_LENGTH-1);
+  Serial.print(KeyEOL1);
+
+  Serial.print(KeyDRIVE); Serial.print(KeyDELIMITER); Serial.print(lastCommand.time);
+  for( int ii=0; ii<4; ii++ ) { Serial.print(KeyDELIMITER); Serial.print(lastCommand.motor[ii]); }
+  Serial.print(KeyEOL1);
+  
+  Serial.print(KeyMOVE); Serial.print(KeyDELIMITER); Serial.print(lastMove.distance); Serial.print(KeyDELIMITER); Serial.print(lastMove.velocity); Serial.print(KeyDELIMITER); Serial.print(lastMove.course); Serial.print(KeyDELIMITER); Serial.print(lastMove.curve);
+  Serial.print(KeyEOL1);
+
+  Serial.print(KeyMODE); Serial.print(KeyDELIMITER); Serial.print(currentMode); Serial.print(KeyDELIMITER); Serial.print(echoRepeat); Serial.print(KeyDELIMITER); Serial.print(echoNextSensor);
+  Serial.print(KeyEOL2); Serial.print(KeyEOL3);
+
+  for( ii=0; ii<ECHO_SENSORS; ii++ ) {
+    Serial.print(KeyECHO); Serial.print(KeyDELIMITER); Serial.print(ii); Serial.print(KeyDELIMITER); Serial.print(echoConfig[ii].low); Serial.print(KeyDELIMITER); Serial.print(echoConfig[ii].high);
+    Serial.print(KeyDELIMITER); Serial.print(echoConfig[ii].emergency); Serial.print(KeyDELIMITER); Serial.print(echoConfig[ii].sensors);
+    Serial.print(KeyEOL1);
+  }
+  Serial.print(KeyEOL2); Serial.print(KeyEOL3);
+}
+
+void commandHello() {
+  char line_buf[ MAX_STRING_LENGTH + 1 ];
+  strcpy_P(line_buf, (char*)pgm_read_word(&(string_table_local[0])));
+  Serial.print(KeyHELLO); Serial.print(KeyDELIMITER); Serial.println(line_buf);
+}
+
+/***## MOTION CONTROL ######################################################################################################################################################***/
 
 /****************************************************/
 /* Convert command to motor and time values         */
 /****************************************************/
-void commandPrepare() {
+void prepareDrive() {
     moveType move;
     if( DEBUG ) {
         Serial.print( "queue: " ); Serial.print( bufTail->params[0] ); Serial.print( ' ' ); Serial.print( bufTail->params[1] ); Serial.print( ' ' ); Serial.print( bufTail->params[2] );
@@ -483,10 +520,8 @@ float calibration(float power, const calibrationType cal) {
   else { return -fixed_power; }
 }
 
-/***######################################################################################################################################################################***/
-
 /****************************************************/
-/* Commands to execute or complete                  */
+/* Motor commands                                   */
 /****************************************************/
 
 void commandDrive()
@@ -541,47 +576,7 @@ void commandStop()
     completeDrive();
 }
 
-void commandStatus()
-{
-  paramType *tempBufTail;
-  unsigned int queue = 0;
-  int ii;
-
-  // Look through all commands in the circular queue and add time from each of them
-  tempBufTail = bufTail;
-  while( tempBufTail != bufHead )
-  {
-    queue++;
-    tempBufTail++;
-    if( tempBufTail == bufCommand + COMMAND_BUF_LENGTH ) { tempBufTail = bufCommand; }
-  }
-
-  Serial.print(KeyREADY); Serial.print(KeyDELIMITER); Serial.print(motionInProgress); Serial.print(KeyDELIMITER); Serial.print(queue); Serial.print(KeyDELIMITER); Serial.print(COMMAND_BUF_LENGTH-1);
-  Serial.print(KeyEOL1);
-
-  Serial.print(KeyDRIVE); Serial.print(KeyDELIMITER); Serial.print(lastCommand.time);
-  for( int ii=0; ii<4; ii++ ) { Serial.print(KeyDELIMITER); Serial.print(lastCommand.motor[ii]); }
-  Serial.print(KeyEOL1);
-  
-  Serial.print(KeyMOVE); Serial.print(KeyDELIMITER); Serial.print(lastMove.distance); Serial.print(KeyDELIMITER); Serial.print(lastMove.velocity); Serial.print(KeyDELIMITER); Serial.print(lastMove.course); Serial.print(KeyDELIMITER); Serial.print(lastMove.curve);
-  Serial.print(KeyEOL1);
-
-  Serial.print(KeyMODE); Serial.print(KeyDELIMITER); Serial.print(currentMode); Serial.print(KeyDELIMITER); Serial.print(echoRepeat); Serial.print(KeyDELIMITER); Serial.print(echoNextSensor);
-  Serial.print(KeyEOL2); Serial.print(KeyEOL3);
-
-  for( ii=0; ii<ECHO_SENSORS; ii++ ) {
-    Serial.print(KeyECHO); Serial.print(KeyDELIMITER); Serial.print(ii); Serial.print(KeyDELIMITER); Serial.print(echoConfig[ii].low); Serial.print(KeyDELIMITER); Serial.print(echoConfig[ii].high);
-    Serial.print(KeyDELIMITER); Serial.print(echoConfig[ii].emergency); Serial.print(KeyDELIMITER); Serial.print(echoConfig[ii].sensors);
-    Serial.print(KeyEOL1);
-  }
-  Serial.print(KeyEOL2); Serial.print(KeyEOL3);
-}
-
-void commandHello() {
-  char line_buf[ MAX_STRING_LENGTH + 1 ];
-  strcpy_P(line_buf, (char*)pgm_read_word(&(string_table_local[0])));
-  Serial.print(KeyHELLO); Serial.print(KeyDELIMITER); Serial.println(line_buf);
-}
+/***## ECHO CONTROL ######################################################################################################################################################***/
 
 void commandEcho(int num) {
   switch( PCISR_BIT(soundEchoPin[num]) ) { // Specify pin by mask and enable ISRs for corresponded pin
@@ -591,7 +586,7 @@ void commandEcho(int num) {
   }
   PCIFR  |= bit(PCISR_BIT(soundEchoPin[num])); // clear any outstanding interrupts
   PCICR  |= bit(PCISR_BIT(soundEchoPin[num])); // enable pins change interrupts for corresponded group
-  isrEchoIndex = 0; // Unblock the ISR logic
+  isrEchoIndex = ECHO_ISR_START; // Unblock the ISR logic
 
   // Trigger ultrasonic sensor
   digitalWrite(soundTriggerPin[num], HIGH);
@@ -609,24 +604,31 @@ void completeEcho(int num) {
           case 2: PCMSK2 &= ~PCMSK_MASK(soundEchoPin[num]); break;
     }
     PCIFR  |= bit(PCISR_BIT(soundEchoPin[num])); // clear any outstanding interrupts
-    range = isrEchoTime[1] - isrEchoTime[0];
-    isrEchoIndex = ISR_ECHO_OFF; // Confirm we completed reading echo range
 
-    if( range < (long)MAX_ECHO_RANGE_CM * SOUND_MICROS_PER_CM ) {
-      echoConfig[num].sensors = range / SOUND_MICROS_PER_CM;
+    if( isrEchoIndex == ECHO_ISR_LAST ) {
+        range = isrEchoTime[1] - isrEchoTime[0];
+        if( range < (long)MAX_ECHO_RANGE_CM * SOUND_MICROS_PER_CM ) {
+            echoConfig[num].sensors = range / SOUND_MICROS_PER_CM;
       
-      if( motionInProgress && (echoConfig[num].sensors < echoConfig[num].emergency) ) {
-          commandStop();
-          statusDecode( RET_WARN_EMERGENCY_STOP );
-      }
+            if( motionInProgress && (echoConfig[num].sensors < echoConfig[num].emergency) ) {
+                commandStop();
+                statusDecode( RET_WARN_EMERGENCY_STOP );
+            }
       
-      if( echoConfig[num].low < echoConfig[num].high ) {
-          if( (echoConfig[num].sensors >= echoConfig[num].low) && (echoConfig[num].sensors <= echoConfig[num].high) ) { report = 1; }
-      }
-      else if( echoConfig[num].low > echoConfig[num].high ) {
-          if( (echoConfig[num].sensors >= echoConfig[num].low) || (echoConfig[num].sensors <= echoConfig[num].high) ) { report = 1; }
-      }
+            if( echoConfig[num].low < echoConfig[num].high ) {
+                if( (echoConfig[num].sensors >= echoConfig[num].low) && (echoConfig[num].sensors <= echoConfig[num].high) ) { report = 1; }
+            }
+            else if( echoConfig[num].low > echoConfig[num].high ) {
+                if( (echoConfig[num].sensors >= echoConfig[num].low) || (echoConfig[num].sensors <= echoConfig[num].high) ) { report = 1; }
+            }
+        } else {
+            echoConfig[num].sensors = MAX_ECHO_RANGE_CM;
+        }
+    } else {
+        echoConfig[num].sensors = MAX_ECHO_RANGE_CM;
     }
+    isrEchoIndex = ECHO_ISR_COMPLETE; // Confirm we completed reading echo range      
+
     if( DEBUG ) { Serial.print(isrEchoTime[0]); Serial.print(KeyDELIMITER); Serial.print(isrEchoTime[1]); Serial.print(KeyDELIMITER); Serial.print(range); Serial.print(KeyDELIMITER); Serial.println(echoConfig[num].sensors); }
 
     if( report ) {
@@ -637,17 +639,17 @@ void completeEcho(int num) {
 
 ISR (PCINT0_vect)
 {
-    if( isrEchoIndex < ISR_ECHO_LAST ) { isrEchoTime[isrEchoIndex++] = micros(); }
+    if( isrEchoIndex < ECHO_ISR_LAST ) { isrEchoTime[isrEchoIndex++] = micros(); }
 }
 
 ISR (PCINT1_vect)
 {
-    if( isrEchoIndex < ISR_ECHO_LAST ) { isrEchoTime[isrEchoIndex++] = micros(); }
+    if( isrEchoIndex < ECHO_ISR_LAST ) { isrEchoTime[isrEchoIndex++] = micros(); }
 }
 
 ISR (PCINT2_vect)
 {
-    if( isrEchoIndex < ISR_ECHO_LAST ) { isrEchoTime[isrEchoIndex++] = micros(); }
+    if( isrEchoIndex < ECHO_ISR_LAST ) { isrEchoTime[isrEchoIndex++] = micros(); }
 }
 
 /***######################################################################################################################################################################***/
@@ -701,6 +703,7 @@ void loop() {
   int ii, rotate = 0;
   unsigned long ms = millis();
   if( ms > echoRepeatTime ) {
+    if( isrEchoIndex != ECHO_ISR_COMPLETE ) { completeEcho(sensor); }
     for( ii=0; ii<ECHO_SENSORS; ii++ ) {
       if( ++sensor == ECHO_SENSORS ) { sensor = 0; rotate = 1;}
       if( currentMode & (0x0001 << sensor) ) {
@@ -711,12 +714,12 @@ void loop() {
       }
     }
   }
-  if( isrEchoIndex == ISR_ECHO_LAST ) {
+  if( isrEchoIndex == ECHO_ISR_LAST ) {
     completeEcho(sensor);
   }
   if( timer == 0 )
   {
-      if( bufTail != bufHead ) { commandPrepare(); }
+      if( bufTail != bufHead ) { prepareDrive(); }
       else { processInfiniteDelta(); }
   }
   else
@@ -724,7 +727,7 @@ void loop() {
       if( millis() - setTime > timer )
       {
           if( bufTail != bufHead ) {
-              commandPrepare();
+              prepareDrive();
           } else {
               if( processInfiniteDelta() != RET_SUCCESS ) { completeDrive(); }
           }
@@ -747,7 +750,7 @@ void serialEvent() {
       {
         Serial.write(0x14);  // reply avrdude.exe
         Serial.write(0x10);  // for sync 
-        digitalWrite(forceResetPin, LOW);  // reset the board
+        digitalWrite(sharedTestResetPin, LOW);  // reset the board
       }
 
       while( (command_end = strchr( stream_start, KeyEOL2 )) != NULL) { *command_end = KeyEOL1; }
