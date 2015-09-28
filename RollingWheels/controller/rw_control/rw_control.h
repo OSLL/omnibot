@@ -31,9 +31,8 @@ static calibrationType const calMove = {60, 200, 40};
 /****************************************************/
 /* Limits                                           */
 /****************************************************/
-const int MAX_STREAM_LENGTH = 255;
-const int COMMAND_BUF_LENGTH = 20;
-const int ECHO_SENSORS = 4;
+static const int MAX_STREAM_LENGTH = 255;
+static const int COMMAND_BUF_LENGTH = 20;
 
 /****************************************************/
 /* Pins                                             */

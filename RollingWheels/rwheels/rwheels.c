@@ -9,7 +9,6 @@
 /************************************************/
 /* Funcion declarations                         */
 /************************************************/
-static void printCurrentData (void);
 static void test1 (void);
 static void test2 (void);
 static void sleep_ms(int milliseconds);
@@ -31,15 +30,6 @@ int main (void) {
     }
 
     serialClose(seriald);
-}
-
-void printCurrentData (void) {
-    printf("last: %d,%d,%d,%d; ", controllerData.last.distance, controllerData.last.velocity, controllerData.last.course, controllerData.last.curve);
-    printf("ready: %d; ", controllerData.ready.queue);
-    printf("drive: %d,%d,%d,%d,%d; ", controllerData.drive.time, controllerData.drive.motor[0], controllerData.drive.motor[1], controllerData.drive.motor[2], controllerData.drive.motor[3]);
-    printf("mode: %d,%d; ", controllerData.mode.mode, controllerData.mode.queue);
-    printf("echo: %d; ", controllerData.echo.range);
-    printf("\n");
 }
 
 void sleep_ms(int milliseconds) {
@@ -64,16 +54,18 @@ void test2(void) {
         time_ms = current_timestamp();
         serialPuts (seriald, ";;HELLO;;");
         serialPuts (seriald, "STOP;");
-        serialPuts (seriald, "ECHO,400;");
-        serialPuts (seriald, "MODE,1,0;");
+        serialPuts (seriald, "ECHO,15,0,0,0;");
+        serialPuts (seriald, "MODE,15,0,0,1000;");
+//        serialPuts (seriald, "MODE,16,0,0,0;");
+        serialPuts (seriald, "MODE,0,16,0,0;");
 //        serialPuts (seriald, "MOVE,3,59,45,-40;"); // Linear move with rotation
         serialPuts (seriald, "MOVE,3,59,45,0;");
         first_run = 0;
     }
-    if(current_timestamp() - time_ms > 250) {
+    if(current_timestamp() - time_ms > 200) {
             printCurrentData();
-            if (controllerData.ready.queue < (controllerData.mode.queue / 2)) {
-                for(ii=0; ii<(controllerData.mode.queue / 2); ii++) {
+            if (controllerData.ready.queue < (controllerData.ready.queueMax / 2)) {
+                for(ii=0; ii<(controllerData.ready.queueMax / 2); ii++) {
                     serialPuts (seriald, "DELTA,0,0,10,0,0;");
                     sleep_ms(30);
                 }

@@ -173,6 +173,7 @@ static const int MAX_MOVE_COURSE = 360; // degrees
 static const int MAX_ECHO_RANGE_CM = 500;
 static const int MIN_ECHO_REPEAT = 40; // mS
 static const int ECHO_EMERGENCY_RANGE = 80; // cm
+#define ECHO_SENSORS 4
 
 /****************************************************/
 /* Vehicle geometry and Calibration constants       */

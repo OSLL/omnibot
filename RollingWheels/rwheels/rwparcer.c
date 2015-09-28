@@ -30,7 +30,23 @@ static Ret_Status parceResponce( char* const buf );
 static Ret_Status parceParameters( char *head, int par_num );
 
 /************************************************/
-/*                                              */
+/* API                                          */
+/************************************************/
+
+void printCurrentData (void) {
+    int ii;
+    printf("move: %d,%d,%d,%d; ", controllerData.move.distance, controllerData.move.velocity, controllerData.move.course, controllerData.move.curve);
+    printf("ready: %d,%d,%d; ", controllerData.ready.motion, controllerData.ready.queue, controllerData.ready.queueMax);
+    printf("drive: %d,%d,%d,%d,%d; ", controllerData.drive.time, controllerData.drive.motor[0], controllerData.drive.motor[1], controllerData.drive.motor[2], controllerData.drive.motor[3]);
+    printf("mode: %d,%d,%d;\n", controllerData.mode.mode, controllerData.mode.echoRepeat, controllerData.mode.echoNextSensor);
+    for( ii=0; ii<ECHO_SENSORS; ii++ ) {
+        printf("echo: %d,%d,%d,%d,%d; ", controllerData.echo[ii].sensor, controllerData.echo[ii].low, controllerData.echo[ii].high, controllerData.echo[ii].emergency, controllerData.echo[ii].range);
+    }
+    printf("\n");
+}
+
+/************************************************/
+/* Parcer                                       */
 /************************************************/
 
 Ret_Status parceResponce( char* const buf ) {
@@ -50,17 +66,17 @@ Ret_Status parceResponce( char* const buf ) {
     else if( ! strncmp( buf, KeyECHO, strlen(KeyECHO) ))
     {
         if( (ret = parceParameters( buf + strlen(KeyECHO), sizeof(echoEvType)/sizeof(int) )) != RET_SUCCESS ) return ret;
-        controllerData.echo = paramBuf.echoEv;
+        controllerData.echo[paramBuf.echoEv.sensor] = paramBuf.echoEv;
     }
     else if( ! strncmp( buf, KeyMODE, strlen(KeyMODE) ))
     {
         if( (ret = parceParameters( buf + strlen(KeyMODE), sizeof(modeEvType)/sizeof(int) )) != RET_SUCCESS ) return ret;
         controllerData.mode = paramBuf.modeEv;
     }
-    else if( ! strncmp( buf, KeyLAST, strlen(KeyLAST) ))
+    else if( ! strncmp( buf, KeyMOVE, strlen(KeyMOVE) ))
     {
-        if( (ret = parceParameters( buf + strlen(KeyMODE), sizeof(lastEvType)/sizeof(int) )) != RET_SUCCESS ) return ret;
-        controllerData.last = paramBuf.lastEv;
+        if( (ret = parceParameters( buf + strlen(KeyMOVE), sizeof(moveEvType)/sizeof(int) )) != RET_SUCCESS ) return ret;
+        controllerData.move = paramBuf.moveEv;
     }
     else if( ! strncmp( buf, KeyHELLO, strlen(KeyHELLO) ))
     {

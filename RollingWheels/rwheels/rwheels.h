@@ -9,9 +9,9 @@
 typedef struct controllerDataType {
     readyEvType ready;
     driveEvType drive;
-    lastEvType last;
+    moveEvType move;
     modeEvType mode;
-    echoEvType echo;
+    echoEvType echo[ECHO_SENSORS];
 } controllerDataType;
 
 /****************************************************/
@@ -30,6 +30,11 @@ extern const char* const string_table_error[];
 /****************************************************/
 extern controllerDataType controllerData;
 extern int seriald;
-void serialReadLine( void );
+
+/************************************************/
+/* Parcer API                                   */
+/************************************************/
+void printCurrentData(void);
+void serialReadLine(void);
 
 #endif
