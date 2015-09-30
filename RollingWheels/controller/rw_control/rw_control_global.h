@@ -106,6 +106,10 @@ typedef struct readyEvType {
     int queueMax;
 } readyEvType;
 
+typedef struct errorEvType {
+    int error;
+} errorEvType;
+
 
 typedef union paramType {
   struct{
@@ -123,6 +127,7 @@ typedef union paramType {
   echoType echo;
   echoEvType echoEv;
   readyEvType readyEv;
+  errorEvType errorEv;
 } paramType;
 
 /****************************************************/

@@ -37,4 +37,10 @@ extern int seriald;
 void printCurrentData(void);
 void serialReadLine(void);
 
+/************************************************/
+/* Application API                              */
+/************************************************/
+void calbackRange( int sensor, int range );
+void calbackEmergency(void);
+
 #endif

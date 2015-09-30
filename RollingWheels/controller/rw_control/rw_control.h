@@ -80,6 +80,7 @@ void completeDrive(void);
 void commandStop(void);
 void commandStatus(void);
 void commandHello(void);
+void prepareEcho(void);
 void commandEcho(int num);
 void completeEcho(int num);
 

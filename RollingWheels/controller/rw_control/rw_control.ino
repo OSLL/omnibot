@@ -12,7 +12,7 @@ const int DEBUG = 0;
 /****************************************************/
 STRING_TABLE_GLOBAL
 
-const char String_Hello[] STRING_MEM_MODE = "Rolling Wheels Ard. ver:0.031.1 (four ultrasonics)";
+const char String_Hello[] STRING_MEM_MODE = "Rolling Wheels Ard. ver:0.031.2 (four ultrasonics)";
 const char* const string_table_local[] STRING_MEM_MODE = {String_Hello};
 
 /****************************************************/
@@ -63,6 +63,7 @@ echoType echoConfig[ECHO_SENSORS] = {MAX_ECHO_RANGE_CM,0,0,0, MAX_ECHO_RANGE_CM,
 unsigned long echoRepeatTime;
 int echoRepeat = MIN_ECHO_REPEAT;
 int echoNextSensor = MIN_ECHO_REPEAT;
+unsigned char echoSensor = 0;
 unsigned long volatile isrEchoTime[ECHO_ISR_LAST];
 unsigned char volatile isrEchoIndex = ECHO_ISR_COMPLETE;
 
@@ -578,6 +579,20 @@ void commandStop()
 
 /***## ECHO CONTROL ######################################################################################################################################################***/
 
+void prepareEcho(void) {
+    int ii, rotate = 0;
+    if( isrEchoIndex != ECHO_ISR_COMPLETE ) { completeEcho(echoSensor); }
+    for( ii=0; ii<ECHO_SENSORS; ii++ ) {
+      if( ++echoSensor == ECHO_SENSORS ) { echoSensor = 0; rotate = 1; }
+      if( currentMode & (0x0001 << echoSensor) ) {
+        commandEcho(echoSensor);
+        if( rotate ) { echoRepeatTime = millis() + echoRepeat; }
+        else { echoRepeatTime = millis() + echoNextSensor; }
+        break;
+      }
+    }  
+}
+
 void commandEcho(int num) {
   switch( PCISR_BIT(soundEchoPin[num]) ) { // Specify pin by mask and enable ISRs for corresponded pin
         case 0: PCMSK0 |= PCMSK_MASK(soundEchoPin[num]); break;
@@ -615,12 +630,6 @@ void completeEcho(int num) {
                 statusDecode( RET_WARN_EMERGENCY_STOP );
             }
       
-            if( echoConfig[num].low < echoConfig[num].high ) {
-                if( (echoConfig[num].sensors >= echoConfig[num].low) && (echoConfig[num].sensors <= echoConfig[num].high) ) { report = 1; }
-            }
-            else if( echoConfig[num].low > echoConfig[num].high ) {
-                if( (echoConfig[num].sensors >= echoConfig[num].low) || (echoConfig[num].sensors <= echoConfig[num].high) ) { report = 1; }
-            }
         } else {
             echoConfig[num].sensors = MAX_ECHO_RANGE_CM;
         }
@@ -631,6 +640,12 @@ void completeEcho(int num) {
 
     if( DEBUG ) { Serial.print(isrEchoTime[0]); Serial.print(KeyDELIMITER); Serial.print(isrEchoTime[1]); Serial.print(KeyDELIMITER); Serial.print(range); Serial.print(KeyDELIMITER); Serial.println(echoConfig[num].sensors); }
 
+    if( echoConfig[num].low < echoConfig[num].high ) {
+        if( (echoConfig[num].sensors >= echoConfig[num].low) && (echoConfig[num].sensors <= echoConfig[num].high) ) { report = 1; }
+    }
+    else if( echoConfig[num].low > echoConfig[num].high ) {
+        if( (echoConfig[num].sensors >= echoConfig[num].low) || (echoConfig[num].sensors <= echoConfig[num].high) ) { report = 1; }
+    }
     if( report ) {
         Serial.print(KeyRANGE); Serial.print(KeyDELIMITER); Serial.print(num); Serial.print(KeyDELIMITER); Serial.print(echoConfig[num].sensors);
         Serial.print(KeyEOL2); Serial.print(KeyEOL3);
@@ -699,23 +714,11 @@ void statusDecode( Ret_Status ret )
 /****************************************************/
 
 void loop() {
-  static int sensor = 0;
-  int ii, rotate = 0;
-  unsigned long ms = millis();
-  if( ms > echoRepeatTime ) {
-    if( isrEchoIndex != ECHO_ISR_COMPLETE ) { completeEcho(sensor); }
-    for( ii=0; ii<ECHO_SENSORS; ii++ ) {
-      if( ++sensor == ECHO_SENSORS ) { sensor = 0; rotate = 1;}
-      if( currentMode & (0x0001 << sensor) ) {
-        commandEcho(sensor);
-        if( rotate ) { echoRepeatTime = ms + echoRepeat; }
-        else { echoRepeatTime = ms + echoNextSensor; }
-        break;
-      }
-    }
+  if( millis() > echoRepeatTime ) {
+    prepareEcho();
   }
   if( isrEchoIndex == ECHO_ISR_LAST ) {
-    completeEcho(sensor);
+    completeEcho(echoSensor);
   }
   if( timer == 0 )
   {

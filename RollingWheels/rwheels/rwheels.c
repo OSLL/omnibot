@@ -11,6 +11,7 @@
 /************************************************/
 static void test1 (void);
 static void test2 (void);
+static void test3 (void);
 static void sleep_ms(int milliseconds);
 static long long current_timestamp(void);
 
@@ -25,7 +26,7 @@ int main (void) {
     seriald = serialOpen ("/dev/ttyAMA0", 115200);
 
     while( 1 ) {
-        test2();
+        test3();
         serialReadLine();
     }
 
@@ -44,6 +45,49 @@ long long current_timestamp(void) {
     gettimeofday(&te, NULL);
     long long milliseconds = te.tv_sec*1000LL + te.tv_usec/1000;
     return milliseconds;
+}
+
+#define RANGE_HISTORY_MAX (6*ECHO_SENSORS)
+int rangeHistory[RANGE_HISTORY_MAX][2];
+int historyHead = 0;
+
+void test3(void) {
+    static int first_run = 1;
+    int ii;
+    if( first_run ) {
+        for( ii=0; ii<RANGE_HISTORY_MAX; ii++) {rangeHistory[ii][0] = 5; rangeHistory[ii][1] = MAX_ECHO_RANGE_CM;}
+        serialPuts (seriald, ";;HELLO;;");
+        serialPuts (seriald, "STOP;");
+        serialPuts (seriald, "MODE,15,0,40,40;");
+        serialPuts (seriald, "ECHO,15,0,500,20;");
+        serialPuts (seriald, "ECHO,16,0,0,0;"); // Disable motors
+        serialPuts (seriald, "MOVE,3,40,45,-40;");
+        serialPuts (seriald, "DELTA,0,0,10,0,30000;");
+        first_run = 0;
+    }
+}
+
+void callbackRange( int sensor, int range ) {
+    char buf[256];
+    int ii;
+    int minimum = 1;
+    rangeHistory[historyHead][0] = sensor;
+    rangeHistory[historyHead][1] = range;
+    historyHead = (historyHead + RANGE_HISTORY_MAX / ECHO_SENSORS) % RANGE_HISTORY_MAX;
+    if( historyHead < RANGE_HISTORY_MAX / ECHO_SENSORS ) { historyHead++; }
+    if( range < 40 ) {
+        for( ii=0, ii<RANGE_HISTORY_MAX; ii++) { if( range > rangeHistory[ii][1] ) { minimum = 0; } }
+        if( minimum ) {
+            sprintf( buf, "MOVE,3,40,%d,-40;", ((sensor*90+360-45)+180)%360 ); 
+            serialPuts( seriald, buf );
+            serialPuts (seriald, "DELTA,0,0,10,0,30000;");
+            printf( "%s", buf );
+        }
+    }
+}
+
+void callbackEmergency() {
+    serialPuts (seriald, "ECHO,15,0,0,20;");
 }
 
 void test2(void) {

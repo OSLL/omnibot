@@ -27,7 +27,10 @@ STRING_TABLE_GLOBAL
 static int readStream( char *buf, int len );
 static void statusDecode( Ret_Status ret );
 static Ret_Status parceResponce( char* const buf );
-static Ret_Status parceParameters( char *head, int par_num );
+static Ret_Status parceParameters( char *head, int par_num, int string = 0 );
+static void eventRange( int sensor, int range );
+static void eventError( int error );
+static void eventWarning( int warning );
 
 /************************************************/
 /* API                                          */
@@ -78,17 +81,25 @@ Ret_Status parceResponce( char* const buf ) {
         if( (ret = parceParameters( buf + strlen(KeyMOVE), sizeof(moveEvType)/sizeof(int) )) != RET_SUCCESS ) return ret;
         controllerData.move = paramBuf.moveEv;
     }
+    else if( ! strncmp( buf, KeyRANGE, strlen(KeyRANGE) ))
+    {
+        if( (ret = parceParameters( buf + strlen(KeyRANGE), sizeof(moveEvType)/sizeof(int) )) != RET_SUCCESS ) return ret;
+        controllerData.echo[paramBuf.rangeEv.sensor] = paramBuf.rangeEv.range;
+        eventRange(paramBuf.rangeEv.sensor, paramBuf.rangeEv.range);
+    }
     else if( ! strncmp( buf, KeyHELLO, strlen(KeyHELLO) ))
     {
         printf( "Arduino: %s\n", buf );
     }
     else if( ! strncmp( buf, KeyERROR, strlen(KeyERROR) ))
     {
-        printf( "Arduino: %s\n", buf );
+        if( (ret = parceParameters( buf + strlen(KeyERROR), sizeof(errorEvType)/sizeof(int), 1 )) != RET_SUCCESS ) return ret;
+        eventError(paramBuf.errorEv.error);
     }
     else if( ! strncmp( buf, KeyWARN, strlen(KeyWARN) ))
     {
-        printf( "Arduino: %s\n", buf );
+        if( (ret = parceParameters( buf + strlen(KeyWARN), sizeof(errorEvType)/sizeof(int), 1 )) != RET_SUCCESS ) return ret;
+        eventWarning(paramBuf.errorEv.error);
     }
     else if( ! strcmp( buf, KeyEMPTY )) { return RET_SUCCESS; }
     else { return RET_ERR_PARCE_COMMAND; }
@@ -97,7 +108,7 @@ Ret_Status parceResponce( char* const buf ) {
     return RET_SUCCESS;
 }
 
-Ret_Status parceParameters( char *head, int par_num ) {
+Ret_Status parceParameters( char *head, int par_num, int string ) {
   char *tail;
   long value;
   int ii;
@@ -111,8 +122,28 @@ Ret_Status parceParameters( char *head, int par_num ) {
       if( head == tail ) return RET_ERR_PARAM_NOT_FOUND;
       head = tail;
   }
+  if( string && ()*head == KeyDELIMITER) return RET_SUCCESS;
   if( *head != 0 ) return RET_ERR_PARCE_TERMINATOR;
   return RET_SUCCESS;
+}
+
+void eventRange( int sensor, int range ) {
+    callbackRange( sensor, range );
+}
+
+void eventError( int error ) {
+    printf( "Arduino: " );
+    statusDecode( error );
+}
+
+void eventWarning( int warning ) {
+    switch( warning ) {
+        case RET_WARN_EMERGENCY_STOP:
+            callbackEmergency();
+            break;
+    }
+    printf( "Arduino: " );
+    statusDecode( warning );
 }
 
 void serialReadLine() {
