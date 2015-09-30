@@ -27,7 +27,7 @@ STRING_TABLE_GLOBAL
 static int readStream( char *buf, int len );
 static void statusDecode( Ret_Status ret );
 static Ret_Status parceResponce( char* const buf );
-static Ret_Status parceParameters( char *head, int par_num, int string = 0 );
+static Ret_Status parceParameters( char *head, int par_num, int string );
 static void eventRange( int sensor, int range );
 static void eventError( int error );
 static void eventWarning( int warning );
@@ -58,33 +58,33 @@ Ret_Status parceResponce( char* const buf ) {
 
     if( ! strncmp( buf, KeyREADY, strlen(KeyREADY) ))
     {
-        if( (ret = parceParameters( buf + strlen(KeyREADY), sizeof(readyEvType)/sizeof(int) )) != RET_SUCCESS ) return ret;
+        if( (ret = parceParameters( buf + strlen(KeyREADY), sizeof(readyEvType)/sizeof(int), 0 )) != RET_SUCCESS ) return ret;
         controllerData.ready = paramBuf.readyEv;
     }
     else if( ! strncmp( buf, KeyDRIVE, strlen(KeyDRIVE) ))
     {
-        if( (ret = parceParameters( buf + strlen(KeyDRIVE), sizeof(driveEvType)/sizeof(int) )) != RET_SUCCESS ) return ret;
+        if( (ret = parceParameters( buf + strlen(KeyDRIVE), sizeof(driveEvType)/sizeof(int), 0 )) != RET_SUCCESS ) return ret;
         controllerData.drive = paramBuf.driveEv;
     }
     else if( ! strncmp( buf, KeyECHO, strlen(KeyECHO) ))
     {
-        if( (ret = parceParameters( buf + strlen(KeyECHO), sizeof(echoEvType)/sizeof(int) )) != RET_SUCCESS ) return ret;
+        if( (ret = parceParameters( buf + strlen(KeyECHO), sizeof(echoEvType)/sizeof(int), 0 )) != RET_SUCCESS ) return ret;
         controllerData.echo[paramBuf.echoEv.sensor] = paramBuf.echoEv;
     }
     else if( ! strncmp( buf, KeyMODE, strlen(KeyMODE) ))
     {
-        if( (ret = parceParameters( buf + strlen(KeyMODE), sizeof(modeEvType)/sizeof(int) )) != RET_SUCCESS ) return ret;
+        if( (ret = parceParameters( buf + strlen(KeyMODE), sizeof(modeEvType)/sizeof(int), 0 )) != RET_SUCCESS ) return ret;
         controllerData.mode = paramBuf.modeEv;
     }
     else if( ! strncmp( buf, KeyMOVE, strlen(KeyMOVE) ))
     {
-        if( (ret = parceParameters( buf + strlen(KeyMOVE), sizeof(moveEvType)/sizeof(int) )) != RET_SUCCESS ) return ret;
+        if( (ret = parceParameters( buf + strlen(KeyMOVE), sizeof(moveEvType)/sizeof(int), 0 )) != RET_SUCCESS ) return ret;
         controllerData.move = paramBuf.moveEv;
     }
     else if( ! strncmp( buf, KeyRANGE, strlen(KeyRANGE) ))
     {
-        if( (ret = parceParameters( buf + strlen(KeyRANGE), sizeof(moveEvType)/sizeof(int) )) != RET_SUCCESS ) return ret;
-        controllerData.echo[paramBuf.rangeEv.sensor] = paramBuf.rangeEv.range;
+        if( (ret = parceParameters( buf + strlen(KeyRANGE), sizeof(rangeEvType)/sizeof(int), 1 )) != RET_SUCCESS ) return ret;
+        controllerData.echo[paramBuf.rangeEv.sensor].range = paramBuf.rangeEv.range;
         eventRange(paramBuf.rangeEv.sensor, paramBuf.rangeEv.range);
     }
     else if( ! strncmp( buf, KeyHELLO, strlen(KeyHELLO) ))
@@ -122,7 +122,7 @@ Ret_Status parceParameters( char *head, int par_num, int string ) {
       if( head == tail ) return RET_ERR_PARAM_NOT_FOUND;
       head = tail;
   }
-  if( string && ()*head == KeyDELIMITER) return RET_SUCCESS;
+  if( string && (*head == KeyDELIMITER) ) return RET_SUCCESS;
   if( *head != 0 ) return RET_ERR_PARCE_TERMINATOR;
   return RET_SUCCESS;
 }
@@ -215,7 +215,7 @@ void statusDecode( Ret_Status ret )
   {
     printf("%s%c%d%c", KeyWARN, KeyDELIMITER, ret, KeyDELIMITER);
     if( ret > RET_WARN_UNKNOWN ) { ret = RET_WARN_UNKNOWN; }
-    printf("%s\n", string_table_warn[ret - RET_ERR_STATUS_START - 1]);
+    printf("%s\n", string_table_warn[ret - RET_WARN_STATUS_START - 1]);
   }
   if ( ret > RET_ERR_STATUS_START )
   {

@@ -126,6 +126,7 @@ typedef union paramType {
   rotateType rotate;
   echoType echo;
   echoEvType echoEv;
+  rangeEvType rangeEv;
   readyEvType readyEv;
   errorEvType errorEv;
 } paramType;
@@ -221,9 +222,9 @@ const char String_Error16[] STRING_MEM_MODE = "Critical System Error"; \
 const char String_Error17[] STRING_MEM_MODE = "Wrong Echo Distance Range"; \
 const char String_Error18[] STRING_MEM_MODE = "Unknown Error"; \
 \
-const char* const string_table_warn[] STRING_MEM_MODE = {String_Warn1, String_Warn2, String_Warn3}; \
+const char* const string_table_warn[] STRING_MEM_MODE = {String_Warn1, String_Warn2, String_Warn3, String_Warn4}; \
 const char* const string_table_error[] STRING_MEM_MODE = {String_Error1, String_Error2, String_Error3, String_Error4, String_Error5, String_Error6, String_Error7, String_Error8, \
-                                                  String_Error9, String_Error10, String_Error11, String_Error12, String_Error13, String_Error14, String_Error15, String_Error16, String_Error17};
+                                                  String_Error9, String_Error10, String_Error11, String_Error12, String_Error13, String_Error14, String_Error15, String_Error16, String_Error17, String_Error18};
 
 #define MAX_STRING_LENGTH 63
 

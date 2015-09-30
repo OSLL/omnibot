@@ -58,13 +58,18 @@ void test3(void) {
         for( ii=0; ii<RANGE_HISTORY_MAX; ii++) {rangeHistory[ii][0] = 5; rangeHistory[ii][1] = MAX_ECHO_RANGE_CM;}
         serialPuts (seriald, ";;HELLO;;");
         serialPuts (seriald, "STOP;");
-        serialPuts (seriald, "MODE,15,0,40,40;");
+        serialPuts (seriald, "MODE,15,0,54,54;");
         serialPuts (seriald, "ECHO,15,0,500,20;");
-        serialPuts (seriald, "ECHO,16,0,0,0;"); // Disable motors
-        serialPuts (seriald, "MOVE,3,40,45,-40;");
-        serialPuts (seriald, "DELTA,0,0,10,0,30000;");
+//        serialPuts (seriald, "ECHO,16,0,0,0;"); // Disable motors
+        serialPuts (seriald, "MOVE,1,40,45,-100;");
+        serialPuts (seriald, "DELTA,0,0,7,0,30000;");
+//        serialPuts (seriald, "DELTA,0,0,7,0,106;");
         first_run = 0;
+        delay(300);
+        serialPuts (seriald, "STATUS;");
     }
+//    printCurrentData();
+//    delay(1000);
 }
 
 void callbackRange( int sensor, int range ) {
@@ -75,13 +80,13 @@ void callbackRange( int sensor, int range ) {
     rangeHistory[historyHead][1] = range;
     historyHead = (historyHead + RANGE_HISTORY_MAX / ECHO_SENSORS) % RANGE_HISTORY_MAX;
     if( historyHead < RANGE_HISTORY_MAX / ECHO_SENSORS ) { historyHead++; }
-    if( range < 40 ) {
-        for( ii=0, ii<RANGE_HISTORY_MAX; ii++) { if( range > rangeHistory[ii][1] ) { minimum = 0; } }
+    if( range < 50 ) {
+        for( ii=0; ii<RANGE_HISTORY_MAX; ii++) { if( range > rangeHistory[ii][1] ) { minimum = 0; } }
         if( minimum ) {
-            sprintf( buf, "MOVE,3,40,%d,-40;", ((sensor*90+360-45)+180)%360 ); 
+            sprintf( buf, "MOVE,1,40,%d,-100;", ((sensor*90+360+45)+180)%360 ); 
             serialPuts( seriald, buf );
-            serialPuts (seriald, "DELTA,0,0,10,0,30000;");
-            printf( "%s", buf );
+            serialPuts (seriald, "DELTA,0,0,7,0,30000;");
+            printf( "%s\n", buf );
         }
     }
 }
@@ -99,7 +104,7 @@ void test2(void) {
         serialPuts (seriald, ";;HELLO;;");
         serialPuts (seriald, "STOP;");
         serialPuts (seriald, "ECHO,15,0,0,0;");
-        serialPuts (seriald, "MODE,15,0,0,1000;");
+        serialPuts (seriald, "MODE,15,0,40,40;");
 //        serialPuts (seriald, "MODE,16,0,0,0;");
         serialPuts (seriald, "MODE,0,16,0,0;");
 //        serialPuts (seriald, "MOVE,3,59,45,-40;"); // Linear move with rotation
