@@ -12,7 +12,7 @@ const int DEBUG = 0;
 /****************************************************/
 STRING_TABLE_GLOBAL
 
-const char String_Hello[] STRING_MEM_MODE = "Rolling Wheels Ard. ver:0.031.2 (four ultrasonics)";
+const char String_Hello[] STRING_MEM_MODE = "Rolling Wheels Ard. ver:0.032 (keep)";
 const char* const string_table_local[] STRING_MEM_MODE = {String_Hello};
 
 /****************************************************/
@@ -211,37 +211,32 @@ Ret_Status validateDriveParameters () {
 }
 
 Ret_Status validateMoveParameters () {
-  if( (abs(bufHead->move.distance) > MAX_MOVE_DISTANCE) && (abs(bufHead->move.distance) < INFINITE_COMMAND) ) return RET_ERR_PARAM_VALUE_DISTANCE;
-  if( abs(bufHead->move.velocity) > MAX_MOVE_VELOCITY ) return RET_ERR_PARAM_VALUE_POWER;
-  if( abs(bufHead->move.course) > MAX_MOVE_COURSE) return RET_ERR_PARAM_VALUE_COURSE;
-  if( abs(bufHead->move.curve) > MAX_MOVE_CURVE ) return RET_ERR_PARAM_VALUE_CURVE;
+  if( (abs(bufHead->move.distance) > MAX_MOVE_DISTANCE) && (abs(bufHead->move.distance) != INFINITE_COMMAND)
+                                                        && (bufHead->move.distance != KEEP_PARAMETER) ) return RET_ERR_PARAM_VALUE_DISTANCE;
+  if( (abs(bufHead->move.velocity) > MAX_MOVE_VELOCITY) && (bufHead->move.velocity != KEEP_PARAMETER) ) return RET_ERR_PARAM_VALUE_POWER;
+  if( (abs(bufHead->move.course) > MAX_MOVE_COURSE) && (bufHead->move.course != KEEP_PARAMETER) ) return RET_ERR_PARAM_VALUE_COURSE;
+  if( (abs(bufHead->move.curve) > MAX_MOVE_CURVE) && (bufHead->move.curve != KEEP_PARAMETER) ) return RET_ERR_PARAM_VALUE_CURVE;
 
-  if( bufHead->move.distance > INFINITE_COMMAND ) { bufHead->move.distance = INFINITE_COMMAND; }
-  if( bufHead->move.distance < -INFINITE_COMMAND ) { bufHead->move.distance = -INFINITE_COMMAND; }
   return RET_SUCCESS;
 }
 
 Ret_Status validateDeltaParameters () {
-    if( bufHead->delta.repeat < 0) return RET_ERR_PARAM_VALUE_REPEAT;
-    if( (abs(bufHead->delta.distance) > MAX_MOVE_DISTANCE) && (abs(bufHead->delta.distance) < INFINITE_COMMAND)) return RET_ERR_PARAM_VALUE_DISTANCE;
+    if( (bufHead->delta.repeat < 0) || (bufHead->delta.repeat > INFINITE_COMMAND) ) return RET_ERR_PARAM_VALUE_REPEAT;
+    if( (abs(bufHead->delta.distance) > MAX_MOVE_DISTANCE /*TBD*/) && (abs(bufHead->delta.distance) != INFINITE_COMMAND)) return RET_ERR_PARAM_VALUE_DISTANCE;
     if( abs(bufHead->delta.velocity) > 2*MAX_MOVE_VELOCITY ) return RET_ERR_PARAM_VALUE_POWER;
     if( abs(bufHead->delta.course) > MAX_MOVE_COURSE ) return RET_ERR_PARAM_VALUE_COURSE;
     if( abs(bufHead->delta.curve) > 2*MAX_MOVE_CURVE ) return RET_ERR_PARAM_VALUE_CURVE;
     
-    if( bufHead->delta.distance > INFINITE_COMMAND ) { bufHead->delta.distance = INFINITE_COMMAND; }
-    if( bufHead->delta.distance < -INFINITE_COMMAND ) { bufHead->delta.distance = -INFINITE_COMMAND; }
-    if( bufHead->delta.repeat > INFINITE_COMMAND) { bufHead->delta.repeat = INFINITE_COMMAND; }
     return RET_SUCCESS;
 }
 
 Ret_Status validateRotateParameters () {
     if (abs(bufHead->rotate.power) > MAX_COMMAND_POWER) return RET_ERR_PARAM_VALUE_POWER;
+    if (abs(bufHead->rotate.angle) > INFINITE_COMMAND) return RET_ERR_PARAM_VALUE_ANGLE;
     if (abs(bufHead->rotate.power) < MIN_POWER_ROTATION) {
       bufHead->rotate.power = 0;
       statusDecode(RET_WARN_MIN_POWER);
     }
-    if( bufHead->rotate.angle > INFINITE_COMMAND ) { bufHead->rotate.angle = INFINITE_COMMAND; }
-    if( bufHead->rotate.angle < -INFINITE_COMMAND ) { bufHead->rotate.angle = -INFINITE_COMMAND; }
     return RET_SUCCESS;  
 }
 
@@ -419,6 +414,11 @@ void processRotateParameters () {
 void processMoveParameters( moveType* mv ) {
   int angle_0_45, local_power, max_power, fixed_velocity;
   float course, rotation, correction, drive1, drive2;
+
+  if( mv->distance == KEEP_PARAMETER ) { mv->distance = lastMove.distance; }
+  if( mv->velocity == KEEP_PARAMETER ) { mv->velocity = lastMove.velocity; }
+  if( mv->course == KEEP_PARAMETER ) { mv->course = lastMove.course; }
+  if( mv->curve == KEEP_PARAMETER ) { mv->curve = lastMove.curve; }
 
   if( abs(mv->velocity) < MIN_POWER_MOVE / CALIBRATION_MOVE_POWER_CM_S ) {
     mv->velocity = 0;

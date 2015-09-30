@@ -174,10 +174,11 @@ static const int MAX_COMMAND_POWER = 255;
 static const int MAX_MOVE_VELOCITY = 100; // cm/S
 static const int MAX_MOVE_CURVE = 100; // 1000/cm
 static const int MAX_MOVE_DISTANCE = 1000; // cm; MAX_COMMAND_DISTANCE shall be less than INFINITE_COMMAND/2; MAX_COMMAND_DISTANCE shall be less than MAX_INT * MAX_MOVE_VELOCITY / CONST_MS_PER_SEC
-static const int INFINITE_COMMAND = 30000;
+static const int INFINITE_COMMAND = 32000;
+static const int KEEP_PARAMETER = 32001;
 static const int MAX_MOVE_COURSE = 360; // degrees
 static const int MAX_ECHO_RANGE_CM = 500;
-static const int MIN_ECHO_REPEAT = 40; // mS
+static const int MIN_ECHO_REPEAT = 30; // mS, MIN_ECHO_REPEAT must be > MAX_ECHO_RANGE_CM * SOUND_MICROS_PER_CM
 static const int ECHO_EMERGENCY_RANGE = 80; // cm
 #define ECHO_SENSORS 4
 
