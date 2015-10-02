@@ -1,3 +1,6 @@
+ver.32
+- Added KEEP_PARAMETER special value to MOVE command
+
 ver.31:
 - Added four ultrasonic sensors support
 
