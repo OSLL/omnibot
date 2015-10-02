@@ -24,9 +24,12 @@ typedef struct calibrationType_t {
   unsigned char shift;
 } calibrationType;
 
-static calibrationType const calCurve = {35, 50, 0};
+static calibrationType const calCurve = {20, 50, 0};
 static calibrationType const calRotation = {30, 65, 13};
 static calibrationType const calMove = {60, 200, 40};
+static const int CALIBRATION_MAX_CYCLES = 10;
+static const float CALIBRATION_ROTATE_POWER_CM_S = 2.; // Power per cm/S for ROTATE command
+static const float CALIBRATION_MOVE_POWER_CM_S = 2.56; // Power per cm/S for MOVE command
 
 /****************************************************/
 /* Limits                                           */
@@ -40,8 +43,8 @@ static const int COMMAND_BUF_LENGTH = 20;
 static const unsigned int sharedTestResetPin = 10;
 static const unsigned char motorPin[4] = {2, 4, 7, 8 };
 static const unsigned char motorPwmPin[4] = {3, 5, 6, 9 };
-static const unsigned char soundEchoPin[ECHO_SENSORS] = {14, 15, 16, 17};
-static const unsigned char soundTriggerPin[ECHO_SENSORS] = {11, 18, 19, 12};
+static const unsigned char soundEchoPin[ECHO_SENSORS] = {14, 17, 16, 15};
+static const unsigned char soundTriggerPin[ECHO_SENSORS] = {11, 12, 19, 18};
 
 /****************************************************/
 /* ISR                                              */

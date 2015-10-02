@@ -12,7 +12,7 @@ const int DEBUG = 0;
 /****************************************************/
 STRING_TABLE_GLOBAL
 
-const char String_Hello[] STRING_MEM_MODE = "Rolling Wheels Ard. ver:0.032 (keep)";
+const char String_Hello[] STRING_MEM_MODE = "Rolling Wheels Ard. ver:0.032.1 (keep)";
 const char* const string_table_local[] STRING_MEM_MODE = {String_Hello};
 
 /****************************************************/
@@ -222,7 +222,7 @@ Ret_Status validateMoveParameters () {
 
 Ret_Status validateDeltaParameters () {
     if( (bufHead->delta.repeat < 0) || (bufHead->delta.repeat > INFINITE_COMMAND) ) return RET_ERR_PARAM_VALUE_REPEAT;
-    if( (abs(bufHead->delta.distance) > MAX_MOVE_DISTANCE /*TBD*/) && (abs(bufHead->delta.distance) != INFINITE_COMMAND)) return RET_ERR_PARAM_VALUE_DISTANCE;
+    if( (abs(bufHead->delta.distance) > 2*MAX_MOVE_DISTANCE ) && (abs(bufHead->delta.distance) != INFINITE_COMMAND)) return RET_ERR_PARAM_VALUE_DISTANCE;
     if( abs(bufHead->delta.velocity) > 2*MAX_MOVE_VELOCITY ) return RET_ERR_PARAM_VALUE_POWER;
     if( abs(bufHead->delta.course) > MAX_MOVE_COURSE ) return RET_ERR_PARAM_VALUE_COURSE;
     if( abs(bufHead->delta.curve) > 2*MAX_MOVE_CURVE ) return RET_ERR_PARAM_VALUE_CURVE;
@@ -420,7 +420,7 @@ void processMoveParameters( moveType* mv ) {
   if( mv->course == KEEP_PARAMETER ) { mv->course = lastMove.course; }
   if( mv->curve == KEEP_PARAMETER ) { mv->curve = lastMove.curve; }
 
-  if( abs(mv->velocity) < MIN_POWER_MOVE / CALIBRATION_MOVE_POWER_CM_S ) {
+  if( abs(mv->velocity) < MOVE_VELOCITY_MIN ) {
     mv->velocity = 0;
     statusDecode(RET_WARN_MIN_POWER);
   }
@@ -429,12 +429,15 @@ void processMoveParameters( moveType* mv ) {
   if(angle_0_45 > 45) angle_0_45 = 90 - angle_0_45;
   course = mv->course * CONST_PI / CONST_DEG_PER_PI;
   
-  for( int jj=0; jj<10; jj++ ) {
-    //TODO process error if jj=10 is not enough and power still more than MAX
+  for( int jj=0; jj<CALIBRATION_MAX_CYCLES; jj++ ) {
+    if( jj == CALIBRATION_MAX_CYCLES-1 ) {
+        mv->velocity = 0;
+        statusDecode(RET_ERR_CALIBRATION_FAILED_POWER);
+    }
     local_power = mv->velocity * CALIBRATION_MOVE_POWER_CM_S;
     if ( mv->distance < 0 ) local_power = -local_power;
     rotation = local_power * CAR_RADIUS * mv->curve / 1000; // CarRadius / WayRadius
-    
+
     correction = 1+angle_0_45/80.;
     drive1 = local_power*sin(course)*correction;
     drive2 = local_power*cos(course)*correction;
@@ -467,8 +470,11 @@ void processMoveParameters( moveType* mv ) {
   {
       lastCommand.time = 0;
   } else {
-      //TODO time can exceed MAX possible value. Need to check at validate stage
       lastCommand.time = CONST_MS_PER_SEC * (long)abs(mv->distance) / abs(mv->velocity); // 1000 * distance / velocity
+      if( lastCommand.time > MAX_COMMAND_TIME ) {
+          lastCommand.time = 0;
+          statusDecode(RET_ERR_CALIBRATION_FAILED_TIME);
+      }
       if( lastCommand.time == 0 ) {
           for( int ii=0; ii<4; ii++ ) { lastCommand.motor[ii] = 0; }
       }

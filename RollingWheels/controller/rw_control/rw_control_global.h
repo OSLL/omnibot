@@ -31,6 +31,8 @@ typedef enum Ret_Status {
     RET_ERR_PARAM_VALUE_REPEAT,
     RET_ERR_SYSTEM_CRITICAL,
     RET_ERR_ECHO_DISTANCE,
+    RET_ERR_CALIBRATION_FAILED_POWER,
+    RET_ERR_CALIBRATION_FAILED_TIME,
     RET_ERR_UNKNOWN,
     RET_ERR_MAX_NUMBER,
 } Ret_Status;
@@ -172,8 +174,9 @@ static const char KeyRANGE[] = "RANGE";
 static const int MAX_COMMAND_TIME = 30000;
 static const int MAX_COMMAND_POWER = 255;
 static const int MAX_MOVE_VELOCITY = 100; // cm/S
-static const int MAX_MOVE_CURVE = 100; // 1000/cm
-static const int MAX_MOVE_DISTANCE = 1000; // cm; MAX_COMMAND_DISTANCE shall be less than INFINITE_COMMAND/2; MAX_COMMAND_DISTANCE shall be less than MAX_INT * MAX_MOVE_VELOCITY / CONST_MS_PER_SEC
+static const int MOVE_VELOCITY_MIN = 2; //TBD
+static const int MAX_MOVE_CURVE = 1000; // 1000/cm //TBD
+static const int MAX_MOVE_DISTANCE = 1000; // cm; MAX_COMMAND_DISTANCE shall be less than INFINITE_COMMAND/3; MAX_COMMAND_DISTANCE shall be less than MAX_INT * MAX_MOVE_VELOCITY / CONST_MS_PER_SEC
 static const int INFINITE_COMMAND = 32000;
 static const int KEEP_PARAMETER = 32001;
 static const int MAX_MOVE_COURSE = 360; // degrees
@@ -192,9 +195,6 @@ static const int ECHO_EMERGENCY_RANGE = 80; // cm
 static const float CAR_CM_PER_DEG = CAR_RADIUS * CONST_PI / CONST_DEG_PER_PI; //0.168
 static const int SOUND_MICROS_PER_CM = 58; // doubled because the sound forward plus back way
 static const int MIN_POWER_ROTATION = 50;
-static const int MIN_POWER_MOVE = 70;
-static const float CALIBRATION_ROTATE_POWER_CM_S = 2.; // Power per cm/S for ROTATE command
-static const float CALIBRATION_MOVE_POWER_CM_S = 2.56; // Power per cm/S for MOVE command
 
 /****************************************************/
 /* String table                                     */
@@ -221,11 +221,14 @@ const char String_Error14[] STRING_MEM_MODE = "Too large parameter value"; \
 const char String_Error15[] STRING_MEM_MODE = "Negative Repeat Value"; \
 const char String_Error16[] STRING_MEM_MODE = "Critical System Error"; \
 const char String_Error17[] STRING_MEM_MODE = "Wrong Echo Distance Range"; \
-const char String_Error18[] STRING_MEM_MODE = "Unknown Error"; \
+const char String_Error18[] STRING_MEM_MODE = "Calibrating Power Failed"; \
+const char String_Error19[] STRING_MEM_MODE = "Calibrating Time Failed"; \
+const char String_Error20[] STRING_MEM_MODE = "Unknown Error"; \
 \
 const char* const string_table_warn[] STRING_MEM_MODE = {String_Warn1, String_Warn2, String_Warn3, String_Warn4}; \
 const char* const string_table_error[] STRING_MEM_MODE = {String_Error1, String_Error2, String_Error3, String_Error4, String_Error5, String_Error6, String_Error7, String_Error8, \
-                                                  String_Error9, String_Error10, String_Error11, String_Error12, String_Error13, String_Error14, String_Error15, String_Error16, String_Error17, String_Error18};
+                                                  String_Error9, String_Error10, String_Error11, String_Error12, String_Error13, String_Error14, String_Error15, String_Error16, \
+                                                  String_Error17, String_Error18, String_Error19, String_Error20};
 
 #define MAX_STRING_LENGTH 63
 
