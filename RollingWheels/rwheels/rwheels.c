@@ -59,10 +59,10 @@ void test3(void) {
         serialPuts (seriald, ";;HELLO;;");
         serialPuts (seriald, "STOP;");
         serialPuts (seriald, "MODE,15,0,54,54;");
-        serialPuts (seriald, "ECHO,15,0,500,20;");
+        serialPuts (seriald, "ECHO,15,0,500,7;");
 //        serialPuts (seriald, "ECHO,16,0,0,0;"); // Disable motors
-        serialPuts (seriald, "MOVE,1,40,45,-100;");
-        serialPuts (seriald, "DELTA,0,0,7,0,30000;");
+        serialPuts (seriald, "MOVE,2,28,45,-60;");
+        serialPuts (seriald, "DELTA,0,0,9,0,32000;");
 //        serialPuts (seriald, "DELTA,0,0,7,0,106;");
         first_run = 0;
         delay(300);
@@ -83,9 +83,9 @@ void callbackRange( int sensor, int range ) {
     if( range < 50 ) {
         for( ii=0; ii<RANGE_HISTORY_MAX; ii++) { if( range > rangeHistory[ii][1] ) { minimum = 0; } }
         if( minimum ) {
-            sprintf( buf, "MOVE,1,40,%d,-100;", ((sensor*90+360+45)+180)%360 ); 
+            sprintf( buf, "MOVE,32001,32001,%d,32001;", ((sensor*90+360+45)+180)%360 ); 
             serialPuts( seriald, buf );
-            serialPuts (seriald, "DELTA,0,0,7,0,30000;");
+            serialPuts (seriald, "DELTA,0,0,9,0,32000;");
             printf( "%s\n", buf );
         }
     }
