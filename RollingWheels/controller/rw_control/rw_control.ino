@@ -12,7 +12,7 @@ const int DEBUG = 0;
 /****************************************************/
 STRING_TABLE_GLOBAL
 
-const char String_Hello[] STRING_MEM_MODE = "Rolling Wheels Ard. ver:0.032.1 (keep)";
+const char String_Hello[] STRING_MEM_MODE = "Rolling Wheels Ard. ver:0.033 (mm)";
 const char* const string_table_local[] STRING_MEM_MODE = {String_Hello};
 
 /****************************************************/
@@ -59,10 +59,10 @@ deltaType infiniteDelta = {0,0,0,0,0};
 /****************************************************/
 /* Echo sound control                               */
 /****************************************************/
-echoType echoConfig[ECHO_SENSORS] = {MAX_ECHO_RANGE_CM,0,0,0, MAX_ECHO_RANGE_CM,0,0,0, MAX_ECHO_RANGE_CM,0,0,0, MAX_ECHO_RANGE_CM,0,0,0};
+echoType echoConfig[ECHO_SENSORS] = {ECHO_RANGE_CM_MAX,0,0,0, ECHO_RANGE_CM_MAX,0,0,0, ECHO_RANGE_CM_MAX,0,0,0, ECHO_RANGE_CM_MAX,0,0,0};
 unsigned long echoRepeatTime;
-int echoRepeat = MIN_ECHO_REPEAT;
-int echoNextSensor = MIN_ECHO_REPEAT;
+int echoRepeat = ECHO_REPEAT_MIN;
+int echoNextSensor = ECHO_REPEAT_MIN;
 unsigned char echoSensor = 0;
 unsigned long volatile isrEchoTime[ECHO_ISR_LAST];
 unsigned char volatile isrEchoIndex = ECHO_ISR_COMPLETE;
@@ -147,7 +147,11 @@ Ret_Status parceCommand(char* const buf) {
   {
     if( (ret = parceParameters( buf + strlen(KeyDELTA), sizeof(deltaType)/sizeof(int) )) != RET_SUCCESS ) return ret;
     if( (ret = validateDeltaParameters()) != RET_SUCCESS ) return ret;
-    bufHead->command = COMMAND_DELTA;
+    if( bufHead->delta.repeat == PARAMETER_INFINITE ) {
+      bufHead->command = COMMAND_DELTA_INFINITE;
+    } else {
+      bufHead->command = COMMAND_DELTA;
+    }
     if( (ret = queueCommand()) != RET_SUCCESS ) return ret;
   }
   else if( ! strncmp( buf, KeyROTATE, strlen(KeyROTATE) ))
@@ -211,28 +215,29 @@ Ret_Status validateDriveParameters () {
 }
 
 Ret_Status validateMoveParameters () {
-  if( (abs(bufHead->move.distance) > MAX_MOVE_DISTANCE) && (abs(bufHead->move.distance) != INFINITE_COMMAND)
-                                                        && (bufHead->move.distance != KEEP_PARAMETER) ) return RET_ERR_PARAM_VALUE_DISTANCE;
-  if( (abs(bufHead->move.velocity) > MAX_MOVE_VELOCITY) && (bufHead->move.velocity != KEEP_PARAMETER) ) return RET_ERR_PARAM_VALUE_POWER;
-  if( (abs(bufHead->move.course) > MAX_MOVE_COURSE) && (bufHead->move.course != KEEP_PARAMETER) ) return RET_ERR_PARAM_VALUE_COURSE;
-  if( (abs(bufHead->move.curve) > MAX_MOVE_CURVE) && (bufHead->move.curve != KEEP_PARAMETER) ) return RET_ERR_PARAM_VALUE_CURVE;
+  if( (abs(bufHead->move.distance) > MOVE_DISTANCE_MAX) && (abs(bufHead->move.distance) != PARAMETER_INFINITE)
+                                                        && (bufHead->move.distance != PARAMETER_KEEP) ) return RET_ERR_PARAM_VALUE_DISTANCE;
+  if( (abs(bufHead->move.velocity) > MOVE_VELOCITY_MAX) && (bufHead->move.velocity != PARAMETER_KEEP) ) return RET_ERR_PARAM_VALUE_POWER;
+  if( (abs(bufHead->move.course) > MOVE_COURSE_MAX) && (bufHead->move.course != PARAMETER_KEEP) ) return RET_ERR_PARAM_VALUE_COURSE;
+  if( (abs(bufHead->move.curve) > MOVE_CURVE_MAX) && (bufHead->move.curve != PARAMETER_KEEP) ) return RET_ERR_PARAM_VALUE_CURVE;
 
   return RET_SUCCESS;
 }
 
 Ret_Status validateDeltaParameters () {
-    if( (bufHead->delta.repeat < 0) || (bufHead->delta.repeat > INFINITE_COMMAND) ) return RET_ERR_PARAM_VALUE_REPEAT;
-    if( (abs(bufHead->delta.distance) > 2*MAX_MOVE_DISTANCE ) && (abs(bufHead->delta.distance) != INFINITE_COMMAND)) return RET_ERR_PARAM_VALUE_DISTANCE;
-    if( abs(bufHead->delta.velocity) > 2*MAX_MOVE_VELOCITY ) return RET_ERR_PARAM_VALUE_POWER;
-    if( abs(bufHead->delta.course) > MAX_MOVE_COURSE ) return RET_ERR_PARAM_VALUE_COURSE;
-    if( abs(bufHead->delta.curve) > 2*MAX_MOVE_CURVE ) return RET_ERR_PARAM_VALUE_CURVE;
+    if( (bufHead->delta.repeat < 1) || (bufHead->delta.repeat > PARAMETER_INFINITE) ) return RET_ERR_PARAM_VALUE_REPEAT;
+    if( (abs(bufHead->delta.distance) > 2*MOVE_DISTANCE_MAX ) && (abs(bufHead->delta.distance) != PARAMETER_INFINITE)) return RET_ERR_PARAM_VALUE_DISTANCE;
+    if( (abs(bufHead->delta.distance) == PARAMETER_INFINITE) && (bufHead->delta.repeat > 1) ) return RET_ERR_PARAM_VALUE_DISTANCE;
+    if( abs(bufHead->delta.velocity) > 2*MOVE_VELOCITY_MAX ) return RET_ERR_PARAM_VALUE_POWER;
+    if( abs(bufHead->delta.course) > MOVE_COURSE_MAX ) return RET_ERR_PARAM_VALUE_COURSE;
+    if( abs(bufHead->delta.curve) > 2*MOVE_CURVE_MAX ) return RET_ERR_PARAM_VALUE_CURVE;
     
     return RET_SUCCESS;
 }
 
 Ret_Status validateRotateParameters () {
     if (abs(bufHead->rotate.power) > MAX_COMMAND_POWER) return RET_ERR_PARAM_VALUE_POWER;
-    if (abs(bufHead->rotate.angle) > INFINITE_COMMAND) return RET_ERR_PARAM_VALUE_ANGLE;
+    if (abs(bufHead->rotate.angle) > PARAMETER_INFINITE) return RET_ERR_PARAM_VALUE_ANGLE;
     if (abs(bufHead->rotate.power) < MIN_POWER_ROTATION) {
       bufHead->rotate.power = 0;
       statusDecode(RET_WARN_MIN_POWER);
@@ -242,8 +247,8 @@ Ret_Status validateRotateParameters () {
 
 Ret_Status processModeParameters () {
     unsigned int oldMode = currentMode;
-    if( (bufHead->mode.echoRepeat != 0) && (bufHead->mode.echoRepeat < MIN_ECHO_REPEAT) ) return RET_ERR_ECHO_REPEAT;
-    if( (bufHead->mode.echoNextSensor != 0) && (bufHead->mode.echoNextSensor < MIN_ECHO_REPEAT) ) return RET_ERR_ECHO_REPEAT;
+    if( (bufHead->mode.echoRepeat != 0) && (bufHead->mode.echoRepeat < ECHO_REPEAT_MIN) ) return RET_ERR_ECHO_REPEAT;
+    if( (bufHead->mode.echoNextSensor != 0) && (bufHead->mode.echoNextSensor < ECHO_REPEAT_MIN) ) return RET_ERR_ECHO_REPEAT;
     
     currentMode |= bufHead->mode.set;
     currentMode &= ~(bufHead->mode.reset);
@@ -260,9 +265,9 @@ Ret_Status processModeParameters () {
 
 Ret_Status processEchoParameters () {
     int ii;
-    if( (bufHead->echo.low < 0) || (bufHead->echo.low > MAX_ECHO_RANGE_CM) ) return RET_ERR_ECHO_DISTANCE;
-    if( (bufHead->echo.high < 0) || (bufHead->echo.high > MAX_ECHO_RANGE_CM) ) return RET_ERR_ECHO_DISTANCE;
-    if( (bufHead->echo.emergency < 0) || (bufHead->echo.emergency > MAX_ECHO_RANGE_CM) ) return RET_ERR_ECHO_DISTANCE;
+    if( (bufHead->echo.low < 0) || (bufHead->echo.low > ECHO_RANGE_CM_MAX) ) return RET_ERR_ECHO_DISTANCE;
+    if( (bufHead->echo.high < 0) || (bufHead->echo.high > ECHO_RANGE_CM_MAX) ) return RET_ERR_ECHO_DISTANCE;
+    if( (bufHead->echo.emergency < 0) || (bufHead->echo.emergency > ECHO_RANGE_CM_MAX) ) return RET_ERR_ECHO_DISTANCE;
     bufHead->echo.sensors &= 0x000F;
     
     for( ii=0; ii<ECHO_SENSORS; ii++ ) {
@@ -331,7 +336,7 @@ void prepareDrive() {
         Serial.print( ' ' ); Serial.print( bufTail->params[3] ); Serial.print( ' ' ); Serial.print( bufTail->params[4] ); Serial.print( ' ' ); Serial.println( bufTail->command );
     }
 
-    infiniteDelta = {0,0,0,0,0};
+    infiniteDelta.repeat = 0;
 
     switch( bufTail->command ) {
       case COMMAND_DRIVE:
@@ -349,14 +354,14 @@ void prepareDrive() {
         processMoveParameters(&move);
         commandDrive();
         lastMove = move;
-        if( (bufTail->delta.repeat) == INFINITE_COMMAND ) {
-            infiniteDelta = bufTail->delta;
-        } else {
-            if( bufTail->delta.repeat > 0 ) {
-                (bufTail->delta.repeat)--;
-                return; // Keep the delta command in the queue while repeate > 0
-            }
+        if( bufTail->delta.repeat > 1 ) {
+            (bufTail->delta.repeat)--;
+            return; // Keep the delta command in the queue while repeate > 1
         }
+        break;
+      case COMMAND_DELTA_INFINITE:
+        infiniteDelta = bufTail->delta;
+        processInfiniteDelta();
         break;
       case COMMAND_ROTATE:
         processRotateParameters();
@@ -374,7 +379,7 @@ void prepareDrive() {
 Ret_Status processInfiniteDelta() {
     deltaType delta;
     moveType* move;
-    if( infiniteDelta.repeat == INFINITE_COMMAND ) {
+    if( infiniteDelta.repeat == PARAMETER_INFINITE ) {
         delta = infiniteDelta;
         move = (moveType*)(&delta);
         processDeltaParameters(move);
@@ -395,11 +400,11 @@ void processRotateParameters () {
     float fixed_power = calibration(local_power, calRotation);
     for( int ii=0; ii<4; ii++ ) { lastCommand.motor[ii] = fixed_power; }
     
-    if( (local_power == 0) || (abs(bufTail->rotate.angle) == INFINITE_COMMAND) ) {
+    if( (local_power == 0) || (abs(bufTail->rotate.angle) == PARAMETER_INFINITE) ) {
         lastCommand.time = 0;
     } else {
         //TODO time can exceed MAX possible value. Need to check at validate stage
-        lastCommand.time = CAR_CM_PER_DEG * CONST_MS_PER_SEC * CALIBRATION_ROTATE_POWER_CM_S * abs(bufTail->rotate.angle) / abs(local_power); // 1000 * 0.168 * 2 * angle /power
+        lastCommand.time = CONST_CAR_MM_PER_DEG * CONST_MS_PER_SEC * CALIBRATION_ROTATE_POWER_MM_S * abs(bufTail->rotate.angle) / abs(local_power); // 1000 * 1.68 * 0.2 * angle /power
         if( lastCommand.time == 0 ) {
             for( int ii=0; ii<4; ii++ ) { lastCommand.motor[ii] = 0; }
         }
@@ -415,12 +420,12 @@ void processMoveParameters( moveType* mv ) {
   int angle_0_45, local_power, max_power, fixed_velocity;
   float course, rotation, correction, drive1, drive2;
 
-  if( mv->distance == KEEP_PARAMETER ) { mv->distance = lastMove.distance; }
-  if( mv->velocity == KEEP_PARAMETER ) { mv->velocity = lastMove.velocity; }
-  if( mv->course == KEEP_PARAMETER ) { mv->course = lastMove.course; }
-  if( mv->curve == KEEP_PARAMETER ) { mv->curve = lastMove.curve; }
+  if( mv->distance == PARAMETER_KEEP ) { mv->distance = lastMove.distance; }
+  if( mv->velocity == PARAMETER_KEEP ) { mv->velocity = lastMove.velocity; }
+  if( mv->course == PARAMETER_KEEP ) { mv->course = lastMove.course; }
+  if( mv->curve == PARAMETER_KEEP ) { mv->curve = lastMove.curve; }
 
-  if( abs(mv->velocity) < MOVE_VELOCITY_MIN ) {
+  if( abs(mv->velocity) < MOVE_VELOCITY_MIN ) { // TBD We need calculate it dynamically
     mv->velocity = 0;
     statusDecode(RET_WARN_MIN_POWER);
   }
@@ -434,9 +439,9 @@ void processMoveParameters( moveType* mv ) {
         mv->velocity = 0;
         statusDecode(RET_ERR_CALIBRATION_FAILED_POWER);
     }
-    local_power = mv->velocity * CALIBRATION_MOVE_POWER_CM_S;
+    local_power = mv->velocity * CALIBRATION_MOVE_POWER_MM_S;
     if ( mv->distance < 0 ) local_power = -local_power;
-    rotation = local_power * CAR_RADIUS * mv->curve / 1000; // CarRadius / WayRadius
+    rotation = local_power * CONST_CAR_RADIUS * mv->curve / 10000; // CarRadius / WayRadius
 
     correction = 1+angle_0_45/80.;
     drive1 = local_power*sin(course)*correction;
@@ -452,8 +457,8 @@ void processMoveParameters( moveType* mv ) {
     if( max_power > MAX_COMMAND_POWER ) {
       fixed_velocity = mv->velocity * (float)MAX_COMMAND_POWER / max_power;
       if(fixed_velocity == mv->velocity) {
-        if(fixed_velocity > 0) { (fixed_velocity)--; }
-        if(fixed_velocity < 0) { (fixed_velocity)++; }
+        if(fixed_velocity > 0) { fixed_velocity -= 1/CALIBRATION_MOVE_POWER_MM_S; }
+        if(fixed_velocity < 0) { fixed_velocity += 1/CALIBRATION_MOVE_POWER_MM_S; }
       }
       mv->velocity = fixed_velocity;
       if( DEBUG ) {
@@ -466,7 +471,7 @@ void processMoveParameters( moveType* mv ) {
     }
   }
 
-  if( (mv->velocity == 0) || (abs(mv->distance) == INFINITE_COMMAND) )
+  if( (mv->velocity == 0) || (abs(mv->distance) == PARAMETER_INFINITE) )
   {
       lastCommand.time = 0;
   } else {
@@ -490,25 +495,25 @@ void processMoveParameters( moveType* mv ) {
 
 void processDeltaParameters( moveType* dm ) {
 
-    if( abs(dm->distance) != INFINITE_COMMAND ) {
-      if( abs(lastMove.distance) != INFINITE_COMMAND ) { dm->distance = lastMove.distance + dm->distance; }
+    if( abs(dm->distance) != PARAMETER_INFINITE ) {
+      if( abs(lastMove.distance) != PARAMETER_INFINITE ) { dm->distance = lastMove.distance + dm->distance; }
       else { dm->distance = lastMove.distance; }
     }
-    if( abs(dm->distance) != INFINITE_COMMAND ) {
-        if (dm->distance > MAX_MOVE_DISTANCE) { dm->distance = MAX_MOVE_DISTANCE; }
-        if (dm->distance < -MAX_MOVE_DISTANCE) { dm->distance = -MAX_MOVE_DISTANCE; }
+    if( abs(dm->distance) != PARAMETER_INFINITE ) {
+        if (dm->distance > MOVE_DISTANCE_MAX) { dm->distance = MOVE_DISTANCE_MAX; }
+        if (dm->distance < -MOVE_DISTANCE_MAX) { dm->distance = -MOVE_DISTANCE_MAX; }
     }
     
     dm->velocity = lastMove.velocity + dm->velocity;
-    if (dm->velocity > MAX_MOVE_VELOCITY) { dm->velocity = MAX_MOVE_VELOCITY; }
-    if (dm->velocity < -MAX_MOVE_VELOCITY) { dm->velocity = -MAX_MOVE_VELOCITY; }
+    if (dm->velocity > MOVE_VELOCITY_MAX) { dm->velocity = MOVE_VELOCITY_MAX; }
+    if (dm->velocity < -MOVE_VELOCITY_MAX) { dm->velocity = -MOVE_VELOCITY_MAX; }
 
     dm->course = lastMove.course + dm->course;
-    dm->course = dm->course % MAX_MOVE_COURSE;
+    dm->course = dm->course % MOVE_COURSE_MAX;
 
     dm->curve = lastMove.curve + dm->curve;
-    if( dm->curve > MAX_MOVE_CURVE ) { dm->curve = MAX_MOVE_CURVE; }
-    if( dm->curve < -MAX_MOVE_CURVE ) { dm->curve = -MAX_MOVE_CURVE; }
+    if( dm->curve > MOVE_CURVE_MAX ) { dm->curve = MOVE_CURVE_MAX; }
+    if( dm->curve < -MOVE_CURVE_MAX ) { dm->curve = -MOVE_CURVE_MAX; }
 }
 
 float calibration(float power, const calibrationType cal) {
@@ -628,7 +633,7 @@ void completeEcho(int num) {
 
     if( isrEchoIndex == ECHO_ISR_LAST ) {
         range = isrEchoTime[1] - isrEchoTime[0];
-        if( range < (long)MAX_ECHO_RANGE_CM * SOUND_MICROS_PER_CM ) {
+        if( range < (long)ECHO_RANGE_CM_MAX * SOUND_MICROS_PER_CM ) {
             echoConfig[num].sensors = range / SOUND_MICROS_PER_CM;
       
             if( motionInProgress && (echoConfig[num].sensors < echoConfig[num].emergency) ) {
@@ -637,10 +642,10 @@ void completeEcho(int num) {
             }
       
         } else {
-            echoConfig[num].sensors = MAX_ECHO_RANGE_CM;
+            echoConfig[num].sensors = ECHO_RANGE_CM_MAX;
         }
     } else {
-        echoConfig[num].sensors = MAX_ECHO_RANGE_CM;
+        echoConfig[num].sensors = ECHO_RANGE_CM_MAX;
     }
     isrEchoIndex = ECHO_ISR_COMPLETE; // Confirm we completed reading echo range      
 

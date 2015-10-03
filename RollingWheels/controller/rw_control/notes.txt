@@ -1,3 +1,6 @@
+ver.33
+- measure distance in mm and velocity in mm/s
+
 ver.32
 - Added KEEP_PARAMETER special value to MOVE command
 

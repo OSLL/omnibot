@@ -147,6 +147,15 @@ typedef enum modeEnum
 } modeEnum;
 
 /****************************************************/
+/* Special parameter values                         */
+/****************************************************/
+typedef enum parameterEnum
+{
+  PARAMETER_INFINITE = 32000,
+  PARAMETER_KEEP = 32001,
+} parameterEnum;
+
+/****************************************************/
 /* Parcer constants                                 */
 /****************************************************/
 static const char KeyDRIVE[] = "DRIVE";
@@ -173,15 +182,13 @@ static const char KeyRANGE[] = "RANGE";
 /****************************************************/
 static const int MAX_COMMAND_TIME = 30000;
 static const int MAX_COMMAND_POWER = 255;
-static const int MAX_MOVE_VELOCITY = 100; // cm/S
-static const int MOVE_VELOCITY_MIN = 2; //TBD
-static const int MAX_MOVE_CURVE = 1000; // 1000/cm //TBD
-static const int MAX_MOVE_DISTANCE = 1000; // cm; MAX_COMMAND_DISTANCE shall be less than INFINITE_COMMAND/3; MAX_COMMAND_DISTANCE shall be less than MAX_INT * MAX_MOVE_VELOCITY / CONST_MS_PER_SEC
-static const int INFINITE_COMMAND = 32000;
-static const int KEEP_PARAMETER = 32001;
-static const int MAX_MOVE_COURSE = 360; // degrees
-static const int MAX_ECHO_RANGE_CM = 500;
-static const int MIN_ECHO_REPEAT = 30; // mS, MIN_ECHO_REPEAT must be > MAX_ECHO_RANGE_CM * SOUND_MICROS_PER_CM
+static const int MOVE_VELOCITY_MAX = 1000; // mm/s
+static const int MOVE_VELOCITY_MIN = 50; // mm/s
+static const int MOVE_CURVE_MAX = 1000; // 10000/mm //TBD
+static const int MOVE_DISTANCE_MAX = 10000; // mm; MAX_COMMAND_DISTANCE shall be less than INFINITE_COMMAND/3; MAX_COMMAND_DISTANCE shall be less than MAX_INT * MAX_MOVE_VELOCITY / CONST_MS_PER_SEC
+static const int MOVE_COURSE_MAX = 360; // degrees
+static const int ECHO_RANGE_CM_MAX = 500;
+static const int ECHO_REPEAT_MIN = 10; // ms, MIN_ECHO_REPEAT should be > MAX_ECHO_RANGE_CM * SOUND_MICROS_PER_CM
 static const int ECHO_EMERGENCY_RANGE = 80; // cm
 #define ECHO_SENSORS 4
 
@@ -191,8 +198,8 @@ static const int ECHO_EMERGENCY_RANGE = 80; // cm
 #define CONST_MS_PER_SEC (1000)
 #define CONST_PI (3.1415)
 #define CONST_DEG_PER_PI (180)
-#define CAR_RADIUS (9.6)
-static const float CAR_CM_PER_DEG = CAR_RADIUS * CONST_PI / CONST_DEG_PER_PI; //0.168
+#define CONST_CAR_RADIUS (96.)
+static const float CONST_CAR_MM_PER_DEG = CONST_CAR_RADIUS * CONST_PI / CONST_DEG_PER_PI; // 1.68
 static const int SOUND_MICROS_PER_CM = 58; // doubled because the sound forward plus back way
 static const int MIN_POWER_ROTATION = 50;
 

@@ -10,6 +10,7 @@ typedef enum commandEnum {
     COMMAND_DRIVE = 0,
     COMMAND_MOVE,
     COMMAND_DELTA,
+    COMMAND_DELTA_INFINITE,
     COMMAND_ROTATE,
     COMMAND_MAX,
 } commandEnum;
@@ -28,8 +29,8 @@ static calibrationType const calCurve = {20, 50, 0};
 static calibrationType const calRotation = {30, 65, 13};
 static calibrationType const calMove = {60, 200, 40};
 static const int CALIBRATION_MAX_CYCLES = 10;
-static const float CALIBRATION_ROTATE_POWER_CM_S = 2.; // Power per cm/S for ROTATE command
-static const float CALIBRATION_MOVE_POWER_CM_S = 2.56; // Power per cm/S for MOVE command
+static const float CALIBRATION_ROTATE_POWER_MM_S = 0.2; // Power per mm/s for ROTATE command
+static const float CALIBRATION_MOVE_POWER_MM_S = 0.256; // Power per mm/s for MOVE command
 
 /****************************************************/
 /* Limits                                           */
