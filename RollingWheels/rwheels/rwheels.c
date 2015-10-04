@@ -50,6 +50,7 @@ long long current_timestamp(void) {
 #define RANGE_HISTORY_MAX (6*ECHO_SENSORS)
 int rangeHistory[RANGE_HISTORY_MAX][2];
 int historyHead = 0;
+int flag_run = 1;
 
 void test3(void) {
     static int first_run = 1;
@@ -58,18 +59,13 @@ void test3(void) {
         for( ii=0; ii<RANGE_HISTORY_MAX; ii++) {rangeHistory[ii][0] = 5; rangeHistory[ii][1] = MAX_ECHO_RANGE_CM;}
         serialPuts (seriald, ";;HELLO;;");
         serialPuts (seriald, "STOP;");
-        serialPuts (seriald, "MODE,15,0,54,54;");
+        serialPuts (seriald, "MODE,5,10,30,30;");
         serialPuts (seriald, "ECHO,15,0,500,7;");
 //        serialPuts (seriald, "ECHO,16,0,0,0;"); // Disable motors
-        serialPuts (seriald, "MOVE,2,28,45,-60;");
-        serialPuts (seriald, "DELTA,0,0,9,0,32000;");
-//        serialPuts (seriald, "DELTA,0,0,7,0,106;");
+        serialPuts (seriald, "MOVE,10,210,45,-156;");
+        serialPuts (seriald, "DELTA,0,0,12,0,32000;");
         first_run = 0;
-        delay(300);
-        serialPuts (seriald, "STATUS;");
     }
-//    printCurrentData();
-//    delay(1000);
 }
 
 void callbackRange( int sensor, int range ) {
@@ -78,72 +74,23 @@ void callbackRange( int sensor, int range ) {
     int minimum = 1;
     rangeHistory[historyHead][0] = sensor;
     rangeHistory[historyHead][1] = range;
-    historyHead = (historyHead + RANGE_HISTORY_MAX / ECHO_SENSORS) % RANGE_HISTORY_MAX;
-    if( historyHead < RANGE_HISTORY_MAX / ECHO_SENSORS ) { historyHead++; }
-    if( range < 50 ) {
+    historyHead = ++historyHead % RANGE_HISTORY_MAX;
+    if( historyHead == 0 ) { for( ii=0; ii<RANGE_HISTORY_MAX; ii++) { printf("%d ", rangeHistory[ii][1]); } printf("\n"); }
+    if( range < 30 ) {
+        printf("range: %d, sensor: %d\n", range, sensor);
         for( ii=0; ii<RANGE_HISTORY_MAX; ii++) { if( range > rangeHistory[ii][1] ) { minimum = 0; } }
-        if( minimum ) {
+        if( minimum && flag_run ) {
             sprintf( buf, "MOVE,32001,32001,%d,32001;", ((sensor*90+360+45)+180)%360 ); 
             serialPuts( seriald, buf );
-            serialPuts (seriald, "DELTA,0,0,9,0,32000;");
+            serialPuts (seriald, "DELTA,0,0,12,0,32000;");
             printf( "%s\n", buf );
         }
     }
 }
 
 void callbackEmergency() {
+    serialPuts (seriald, "MODE,0,15,0,0;");
     serialPuts (seriald, "ECHO,15,0,0,20;");
-}
-
-void test2(void) {
-    static long long time_ms;
-    static int first_run = 1;
-    int ii;
-    if( first_run ) {
-        time_ms = current_timestamp();
-        serialPuts (seriald, ";;HELLO;;");
-        serialPuts (seriald, "STOP;");
-        serialPuts (seriald, "ECHO,15,0,0,0;");
-        serialPuts (seriald, "MODE,15,0,40,40;");
-//        serialPuts (seriald, "MODE,16,0,0,0;");
-        serialPuts (seriald, "MODE,0,16,0,0;");
-//        serialPuts (seriald, "MOVE,3,59,45,-40;"); // Linear move with rotation
-        serialPuts (seriald, "MOVE,3,59,45,0;");
-        first_run = 0;
-    }
-    if(current_timestamp() - time_ms > 200) {
-            printCurrentData();
-            if (controllerData.ready.queue < (controllerData.ready.queueMax / 2)) {
-                for(ii=0; ii<(controllerData.ready.queueMax / 2); ii++) {
-                    serialPuts (seriald, "DELTA,0,0,10,0,0;");
-                    sleep_ms(30);
-                }
-            }
-            serialPuts (seriald, "STATUS;");
-            time_ms = current_timestamp();
-    }
-}
-
-void test1(void) {
-    static time_t tt;
-    static int first_run = 1;
-    static int ttt = 200;
-    if( first_run ) {
-        tt = time(NULL);
-        serialPuts (seriald, ";;HELLO;;");
-        serialPuts (seriald, "ECHO,400;");
-        serialPuts (seriald, "MODE,1,0;");
-        first_run = 0;
-    }
-    if(time(NULL) - tt > 1) {
-            serialPuts (seriald, "STATUS;");
-            printCurrentData();
-            if (controllerData.ready.queue < 5) {
-                ttt++;
-                sprintf( temp_str, "MOVE,%d,55,45,0;", ttt);
-                serialPuts (seriald, temp_str);
-            }
-            tt = time(NULL);
-    }
+    flag_run = 0;
 }
 
