@@ -12,7 +12,7 @@ const int DEBUG = 0;
 /****************************************************/
 STRING_TABLE_GLOBAL
 
-const char String_Hello[] STRING_MEM_MODE = "Rolling Wheels Ard. ver:0.033 (mm)";
+const char String_Hello[] STRING_MEM_MODE = "Rolling Wheels Ard. ver:0.034";
 const char* const string_table_local[] STRING_MEM_MODE = {String_Hello};
 
 /****************************************************/
@@ -44,28 +44,28 @@ paramType *bufHead, *bufTail;
 /****************************************************/
 /* Mode                                             */
 /****************************************************/
-unsigned int currentMode = 0;
+unsigned int currentMode;
 /****************************************************/
 /* Motor time control                               */
 /****************************************************/
 unsigned long timer, setTime;
-int motionInProgress = 0;
+int motionStatus;
 /****************************************************/
 /* Last command values                              */
 /****************************************************/
-driveType lastCommand = {0,0,0,0,0};
-moveType lastMove = {0,0,0,0};
-deltaType infiniteDelta = {0,0,0,0,0};
+driveType lastCommand;
+moveType lastMove;
+deltaType infiniteDelta;
 /****************************************************/
 /* Echo sound control                               */
 /****************************************************/
-echoType echoConfig[ECHO_SENSORS] = {ECHO_RANGE_CM_MAX,0,0,0, ECHO_RANGE_CM_MAX,0,0,0, ECHO_RANGE_CM_MAX,0,0,0, ECHO_RANGE_CM_MAX,0,0,0};
+echoType echoConfig[ECHO_SENSORS]; // = {ECHO_RANGE_CM_MAX,0,0,0, ECHO_RANGE_CM_MAX,0,0,0, ECHO_RANGE_CM_MAX,0,0,0, ECHO_RANGE_CM_MAX,0,0,0};
 unsigned long echoRepeatTime;
-int echoRepeat = ECHO_REPEAT_MIN;
-int echoNextSensor = ECHO_REPEAT_MIN;
-unsigned char echoSensor = 0;
+int echoRepeat;
+int echoNextSensor;
+unsigned char echoSensor;
 unsigned long volatile isrEchoTime[ECHO_ISR_LAST];
-unsigned char volatile isrEchoIndex = ECHO_ISR_COMPLETE;
+unsigned char volatile isrEchoIndex;
 
 /***######################################################################################################################################################################***/
 
@@ -76,8 +76,8 @@ unsigned char volatile isrEchoIndex = ECHO_ISR_COMPLETE;
 void setup() {
 
   char test_buf[ MAX_STRING_LENGTH + 1 ];
-  int ii;
   Ret_Status ret;
+  int ii;
   
   // Motor pins
   for( ii=0; ii<4; ii++ ) {
@@ -98,10 +98,10 @@ void setup() {
   Serial.begin(115200);
   Serial.setTimeout(10);
   delay(1000);
+  
+  // Initialize variables, engines command queue and stop engines
+  commandStop( MOTION_STOP_INIT );
   commandHello();
-
-  // Initialize engines command queue and stop engines
-  commandStop();
 
   // Test load
   pinMode( sharedTestResetPin, INPUT_PULLUP);
@@ -117,7 +117,37 @@ void setup() {
   // Board reset for FW upgrade pin
   digitalWrite(sharedTestResetPin, HIGH);
   pinMode( sharedTestResetPin, OUTPUT);
+
 }
+
+void systemInit(void) {
+  int ii;
+
+  currentMode = 0;
+  lastMove = {0,0,0,0};
+  infiniteDelta = {0,0,0,0,0};
+
+  // Disable echo interrupts
+  for( ii=0; ii<ECHO_SENSORS; ii++ ) {
+    PCICR  &= ~bit(PCISR_BIT(soundEchoPin[ii])); // disable pins change interrupts for corresponded group
+    switch( PCISR_BIT(soundEchoPin[ii]) ) { // Specify pin by mask and disable ISRs for corresponded pin
+          case 0: PCMSK0 &= ~PCMSK_MASK(soundEchoPin[ii]); break;
+          case 1: PCMSK1 &= ~PCMSK_MASK(soundEchoPin[ii]); break;
+          case 2: PCMSK2 &= ~PCMSK_MASK(soundEchoPin[ii]); break;
+    }
+    PCIFR  |= bit(PCISR_BIT(soundEchoPin[ii])); // clear any outstanding interrupts
+  }
+  isrEchoIndex = ECHO_ISR_COMPLETE;
+  
+  // Initialize echo variables
+  echoRepeat = ECHO_REPEAT_MIN;
+  echoNextSensor = ECHO_REPEAT_MIN;
+  echoSensor = 0;
+  for( ii=0; ii<ECHO_SENSORS; ii++ ) {
+    echoConfig[ii] = {ECHO_RANGE_CM_MAX,0,0,0};
+  }
+}
+
 
 /***######################################################################################################################################################################***/
 
@@ -170,7 +200,10 @@ Ret_Status parceCommand(char* const buf) {
     if( (ret = parceParameters( buf + strlen(KeyECHO), sizeof(echoType)/sizeof(int) )) != RET_SUCCESS ) return ret;
     if( (ret = processEchoParameters()) != RET_SUCCESS ) return ret;
   }
-  else if (! strcmp( buf, KeySTOP )) { commandStop(); }
+  else if (! strncmp( buf, KeySTOP, strlen(KeySTOP) )) {
+    if( (ret = parceParameters( buf + strlen(KeySTOP), sizeof(stopType)/sizeof(int) )) != RET_SUCCESS ) return ret;
+    commandStop( bufHead->stop.motion ); 
+  }
   else if (! strcmp( buf, KeySTATUS )) { commandStatus(); }
   else if (! strcmp( buf, KeyHELLO )) { commandHello(); }
   else if (! strcmp( buf, KeyEMPTY )) { }
@@ -198,6 +231,7 @@ Ret_Status parceParameters ( char *head, int par_num ) {
 Ret_Status queueCommand () {
     paramType *tempBufHead;
     Ret_Status ret;
+    if( motionStatus > MOTION_STOP ) return RET_ERR_MOTION_LOCKED;
     tempBufHead = bufHead + 1;
     if( tempBufHead == bufCommand + COMMAND_BUF_LENGTH ) { tempBufHead = bufCommand; }
     if( tempBufHead == bufTail) return RET_ERR_QUEUE_OVERLOAD;
@@ -225,13 +259,20 @@ Ret_Status validateMoveParameters () {
 }
 
 Ret_Status validateDeltaParameters () {
-    if( (bufHead->delta.repeat < 1) || (bufHead->delta.repeat > PARAMETER_INFINITE) ) return RET_ERR_PARAM_VALUE_REPEAT;
-    if( (abs(bufHead->delta.distance) > 2*MOVE_DISTANCE_MAX ) && (abs(bufHead->delta.distance) != PARAMETER_INFINITE)) return RET_ERR_PARAM_VALUE_DISTANCE;
+    if( (bufHead->delta.repeat < 0) || (bufHead->delta.repeat > PARAMETER_INFINITE) ) return RET_ERR_PARAM_VALUE_REPEAT;
+    if( (abs(bufHead->delta.distance) > 2*MOVE_DISTANCE_MAX ) && (abs(bufHead->delta.distance) != PARAMETER_INFINITE)
+                                                              && (bufHead->delta.distance != PARAMETER_KEEP) ) return RET_ERR_PARAM_VALUE_DISTANCE;
     if( (abs(bufHead->delta.distance) == PARAMETER_INFINITE) && (bufHead->delta.repeat > 1) ) return RET_ERR_PARAM_VALUE_DISTANCE;
-    if( abs(bufHead->delta.velocity) > 2*MOVE_VELOCITY_MAX ) return RET_ERR_PARAM_VALUE_POWER;
-    if( abs(bufHead->delta.course) > MOVE_COURSE_MAX ) return RET_ERR_PARAM_VALUE_COURSE;
-    if( abs(bufHead->delta.curve) > 2*MOVE_CURVE_MAX ) return RET_ERR_PARAM_VALUE_CURVE;
-    
+    if( (abs(bufHead->delta.velocity) > 2*MOVE_VELOCITY_MAX) && (bufHead->delta.velocity != PARAMETER_KEEP) ) return RET_ERR_PARAM_VALUE_POWER;
+    if( (abs(bufHead->delta.course) > MOVE_COURSE_MAX) && (bufHead->delta.course != PARAMETER_KEEP) ) return RET_ERR_PARAM_VALUE_COURSE;
+    if( (abs(bufHead->delta.curve) > 2*MOVE_CURVE_MAX) && (bufHead->delta.curve != PARAMETER_KEEP) ) return RET_ERR_PARAM_VALUE_CURVE;
+
+    if( bufHead->delta.repeat != PARAMETER_INFINITE ) {
+        if( bufHead->delta.distance == PARAMETER_KEEP ) { bufHead->delta.distance = 0; }
+        if( bufHead->delta.velocity == PARAMETER_KEEP ) { bufHead->delta.velocity = 0; }
+        if( bufHead->delta.course == PARAMETER_KEEP ) { bufHead->delta.course = 0; }
+        if( bufHead->delta.curve == PARAMETER_KEEP ) { bufHead->delta.curve = 0; }
+    }
     return RET_SUCCESS;
 }
 
@@ -297,14 +338,19 @@ void commandStatus()
     if( tempBufTail == bufCommand + COMMAND_BUF_LENGTH ) { tempBufTail = bufCommand; }
   }
 
-  Serial.print(KeyREADY); Serial.print(KeyDELIMITER); Serial.print(motionInProgress); Serial.print(KeyDELIMITER); Serial.print(queue); Serial.print(KeyDELIMITER); Serial.print(COMMAND_BUF_LENGTH-1);
+  Serial.print(KeyREADY); Serial.print(KeyDELIMITER); Serial.print(motionStatus); Serial.print(KeyDELIMITER); Serial.print(queue); Serial.print(KeyDELIMITER); Serial.print(COMMAND_BUF_LENGTH-1);
   Serial.print(KeyEOL1);
 
   Serial.print(KeyDRIVE); Serial.print(KeyDELIMITER); Serial.print(lastCommand.time);
   for( int ii=0; ii<4; ii++ ) { Serial.print(KeyDELIMITER); Serial.print(lastCommand.motor[ii]); }
   Serial.print(KeyEOL1);
   
-  Serial.print(KeyMOVE); Serial.print(KeyDELIMITER); Serial.print(lastMove.distance); Serial.print(KeyDELIMITER); Serial.print(lastMove.velocity); Serial.print(KeyDELIMITER); Serial.print(lastMove.course); Serial.print(KeyDELIMITER); Serial.print(lastMove.curve);
+  Serial.print(KeyMOVE); Serial.print(KeyDELIMITER); Serial.print(lastMove.distance); Serial.print(KeyDELIMITER); Serial.print(lastMove.velocity);
+  Serial.print(KeyDELIMITER); Serial.print(lastMove.course); Serial.print(KeyDELIMITER); Serial.print(lastMove.curve);
+  Serial.print(KeyEOL1);
+
+  Serial.print(KeyDELTA); Serial.print(KeyDELIMITER); Serial.print(infiniteDelta.distance); Serial.print(KeyDELIMITER); Serial.print(infiniteDelta.velocity);
+  Serial.print(KeyDELIMITER); Serial.print(infiniteDelta.course); Serial.print(KeyDELIMITER); Serial.print(infiniteDelta.curve); Serial.print(KeyDELIMITER); Serial.print(infiniteDelta.repeat);
   Serial.print(KeyEOL1);
 
   Serial.print(KeyMODE); Serial.print(KeyDELIMITER); Serial.print(currentMode); Serial.print(KeyDELIMITER); Serial.print(echoRepeat); Serial.print(KeyDELIMITER); Serial.print(echoNextSensor);
@@ -349,18 +395,22 @@ void prepareDrive() {
         lastMove = bufTail->move;
         break;
       case COMMAND_DELTA:
-        move = bufTail->move;
-        processDeltaParameters(&move);
-        processMoveParameters(&move);
-        commandDrive();
-        lastMove = move;
-        if( bufTail->delta.repeat > 1 ) {
+        if( bufTail->delta.repeat > 0 ) {
+            move = bufTail->move;
+            processDeltaParameters(&move);
+            processMoveParameters(&move);
+            commandDrive();
+            lastMove = move;
             (bufTail->delta.repeat)--;
-            return; // Keep the delta command in the queue while repeate > 1
+            if( bufTail->delta.repeat > 0 ) return; // Keep the delta command in the queue while repeate > 1
         }
         break;
       case COMMAND_DELTA_INFINITE:
-        infiniteDelta = bufTail->delta;
+        if( bufTail->delta.distance != PARAMETER_KEEP ) { infiniteDelta.distance = bufTail->delta.distance; }
+        if( bufTail->delta.velocity != PARAMETER_KEEP ) { infiniteDelta.velocity = bufTail->delta.velocity; }
+        if( bufTail->delta.course != PARAMETER_KEEP ) { infiniteDelta.course = bufTail->delta.course; }
+        if( bufTail->delta.curve != PARAMETER_KEEP ) { infiniteDelta.curve = bufTail->delta.curve; }
+        infiniteDelta.repeat = PARAMETER_INFINITE;
         processInfiniteDelta();
         break;
       case COMMAND_ROTATE:
@@ -369,7 +419,7 @@ void prepareDrive() {
         break;
       default:
         statusDecode( RET_ERR_SYSTEM_CRITICAL );
-        commandStop();
+        commandStop(MOTION_STOP_CRITICAL);
         return;
     }
     bufTail++;
@@ -556,7 +606,7 @@ void commandDrive()
       }
       timer = lastCommand.time;
       setTime = millis();
-      motionInProgress = 1;
+      motionStatus = MOTION_IN_PROGRESS;
       if( DEBUG ) {
         Serial.print( "commandDrive: " ); Serial.print( lastCommand.time ); Serial.print( ' ' ); Serial.print( lastCommand.motor[0] ); Serial.print( ' ' ); Serial.print( lastCommand.motor[1] );
         Serial.print( ' ' ); Serial.print( lastCommand.motor[2] ); Serial.print( ' ' ); Serial.println( lastCommand.motor[3] );
@@ -574,18 +624,20 @@ void completeDrive()
   }
   timer = 0;
   lastCommand.time = 0;
-  motionInProgress = 0;
+  motionStatus = MOTION_STOP;
 }
 
-void commandStop()
+void commandStop( int motion )
 {
+    if( motion == MOTION_STOP_INIT ) { systemInit(); }
     // Purge commands from circular queue
     bufHead = bufCommand;
     bufTail = bufCommand;
-    // Purge infinite delta
-    infiniteDelta = {0,0,0,0,0};
+    // Stop infinite delta
+    infiniteDelta.repeat = 0;
     // Stop current command immediately
     completeDrive();
+    if( motion > MOTION_STOP_INIT ) { motionStatus = motion; }
 }
 
 /***## ECHO CONTROL ######################################################################################################################################################***/
@@ -636,8 +688,8 @@ void completeEcho(int num) {
         if( range < (long)ECHO_RANGE_CM_MAX * SOUND_MICROS_PER_CM ) {
             echoConfig[num].sensors = range / SOUND_MICROS_PER_CM;
       
-            if( motionInProgress && (echoConfig[num].sensors < echoConfig[num].emergency) ) {
-                commandStop();
+            if( (motionStatus == MOTION_IN_PROGRESS) && (echoConfig[num].sensors < echoConfig[num].emergency) ) {
+                commandStop( MOTION_STOP_LOCKED );
                 statusDecode( RET_WARN_EMERGENCY_STOP );
             }
       

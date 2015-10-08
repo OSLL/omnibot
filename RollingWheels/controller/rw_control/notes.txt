@@ -1,3 +1,8 @@
+ver.34
+- added parameter to STOP command
+- added ability to init controller by STOP,2 command
+- added MOTION_LOCKED state after emergency stop by low echo distance
+
 ver.33
 - measure distance in mm and velocity in mm/s
 

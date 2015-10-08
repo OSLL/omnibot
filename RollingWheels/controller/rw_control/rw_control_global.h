@@ -33,6 +33,7 @@ typedef enum Ret_Status {
     RET_ERR_ECHO_DISTANCE,
     RET_ERR_CALIBRATION_FAILED_POWER,
     RET_ERR_CALIBRATION_FAILED_TIME,
+    RET_ERR_MOTION_LOCKED,
     RET_ERR_UNKNOWN,
     RET_ERR_MAX_NUMBER,
 } Ret_Status;
@@ -112,6 +113,10 @@ typedef struct errorEvType {
     int error;
 } errorEvType;
 
+typedef struct stopType {
+    int motion;
+} stopType;
+
 
 typedef union paramType {
   struct{
@@ -131,6 +136,7 @@ typedef union paramType {
   rangeEvType rangeEv;
   readyEvType readyEv;
   errorEvType errorEv;
+  stopType stop;
 } paramType;
 
 /****************************************************/
@@ -145,6 +151,18 @@ typedef enum modeEnum
   MODE_MOTOR_DISABLE = 0x0010,
   MODE_FW_UPGRADE_ENABLE = 0x0020,
 } modeEnum;
+
+/****************************************************/
+/* Mode                                             */
+/****************************************************/
+typedef enum motionEnum
+{
+  MOTION_IN_PROGRESS,
+  MOTION_STOP,
+  MOTION_STOP_INIT,
+  MOTION_STOP_LOCKED,
+  MOTION_STOP_CRITICAL,
+} motionEnum;
 
 /****************************************************/
 /* Special parameter values                         */
@@ -230,12 +248,13 @@ const char String_Error16[] STRING_MEM_MODE = "Critical System Error"; \
 const char String_Error17[] STRING_MEM_MODE = "Wrong Echo Distance Range"; \
 const char String_Error18[] STRING_MEM_MODE = "Calibrating Power Failed"; \
 const char String_Error19[] STRING_MEM_MODE = "Calibrating Time Failed"; \
-const char String_Error20[] STRING_MEM_MODE = "Unknown Error"; \
+const char String_Error20[] STRING_MEM_MODE = "Motion is Blocked"; \
+const char String_Error21[] STRING_MEM_MODE = "Unknown Error"; \
 \
 const char* const string_table_warn[] STRING_MEM_MODE = {String_Warn1, String_Warn2, String_Warn3, String_Warn4}; \
 const char* const string_table_error[] STRING_MEM_MODE = {String_Error1, String_Error2, String_Error3, String_Error4, String_Error5, String_Error6, String_Error7, String_Error8, \
                                                   String_Error9, String_Error10, String_Error11, String_Error12, String_Error13, String_Error14, String_Error15, String_Error16, \
-                                                  String_Error17, String_Error18, String_Error19, String_Error20};
+                                                  String_Error17, String_Error18, String_Error19, String_Error20, String_Error21};
 
 #define MAX_STRING_LENGTH 63
 

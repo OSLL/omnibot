@@ -53,11 +53,23 @@ MOVE,30,630,45,-29;DELTA,0,0,6,0,32000;
 MOVE,60,750,45,-24;DELTA,0,0,10,0,32000;
 
 -------------------------------------------------------------------------------
-Linear motion with rotation. 15 ms/echo, 15*24*4= 360*4= 1440 ms/turn, 0.693 turn/s,
+Linear motion with rotation. 30 ms/echo, 30*24*2= 720*2= 1440 ms/turn, 0.693 turn/s,
 
-30 commands/turn, 12 deg/command, 1 cm/command, 48 ms/command,
-48 ms/cm, 20.8 cm/s, 30 cm/turn, 209 (1000/cm), 
+30 commands/turn, 12 deg/command, 8 mm/command, 48 ms/command,
+6 ms/mm, 166 mm/s, 239 mm/turn, 262 (10000/mm), 
+MOVE,8,166,45,-207;DELTA,0,0,12,0,32000;
+
+30 commands/turn, 12 deg/command, 10 mm/command, 48 ms/command,
+4.8 ms/mm, 208 mm/s, 300 mm/turn, 209 (10000/mm), 
 MOVE,10,210,45,-156;DELTA,0,0,12,0,32000;
+
+30 commands/turn, 12 deg/command, 12 mm/command, 48 ms/command,
+4 ms/mm, 250 mm/s, 360 mm/turn, 174 (10000/mm), 
+MOVE,12,250,45,-126(-141);DELTA,0,0,12,0,32000;
+
+30 commands/turn, 12 deg/command, 16 mm/command, 48 ms/command,
+3 ms/mm, 333 mm/s, 480 mm/turn, 131 (10000/mm), 
+MOVE,16,333,45,-120;DELTA,0,0,12,0,32000;
 
 
 	
