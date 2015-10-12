@@ -14,6 +14,7 @@
 int seriald = -1;
 paramType paramBuf;
 controllerDataType controllerData;
+void (*callbacks[CALLBACK_TERMINATOR])(callbackDataType* data);
 
 /************************************************/
 /* String table                                 */
@@ -128,7 +129,11 @@ Ret_Status parceParameters( char *head, int par_num, int string ) {
 }
 
 void eventRange( int sensor, int range ) {
-    callbackRange( sensor, range );
+    callbackDataType data;
+    data.range.sensor = sensor;
+    data.range.range = range;
+    callbacks[CALLBACK_RANGE]( &data );
+//    callbackRange( sensor, range );
 }
 
 void eventError( int error ) {
@@ -139,7 +144,7 @@ void eventError( int error ) {
 void eventWarning( int warning ) {
     switch( warning ) {
         case RET_WARN_EMERGENCY_STOP:
-            callbackEmergency();
+            callbacks[CALLBACK_EMERGENCY](NULL);
             break;
     }
     printf( "Arduino: " );
