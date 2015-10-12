@@ -32,6 +32,8 @@ static Ret_Status parceParameters( char *head, int par_num, int string );
 static void eventRange( int sensor, int range );
 static void eventError( int error );
 static void eventWarning( int warning );
+static void calbackRange( int sensor, int range );
+static void calbackEmergency(void);
 
 /************************************************/
 /* API                                          */
@@ -133,7 +135,6 @@ void eventRange( int sensor, int range ) {
     data.range.sensor = sensor;
     data.range.range = range;
     callbacks[CALLBACK_RANGE]( &data );
-//    callbackRange( sensor, range );
 }
 
 void eventError( int error ) {

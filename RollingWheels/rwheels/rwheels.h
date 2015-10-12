@@ -33,6 +33,7 @@ extern int seriald;
 typedef enum callbackEnum {
     CALLBACK_RANGE = 0,
     CALLBACK_EMERGENCY,
+    CALLBACK_START,
     CALLBACK_TERMINATOR,
 } callbackEnum;
 
@@ -51,16 +52,15 @@ typedef union callbackDataType {
 extern void (*callbacks[CALLBACK_TERMINATOR])(callbackDataType* data);
 
 /************************************************/
+/* RW API                                       */
+/************************************************/
+void rwstop(void);
+
+/************************************************/
 /* Parcer API                                   */
 /************************************************/
 void printCurrentData(void);
 void serialReadLine(void);
-
-/************************************************/
-/* Application API                              */
-/************************************************/
-void calbackRange( int sensor, int range );
-void calbackEmergency(void);
 
 /************************************************/
 /* Library API                                  */
