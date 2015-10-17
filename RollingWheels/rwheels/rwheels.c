@@ -9,38 +9,29 @@
 /************************************************/
 /* Funcion declarations                         */
 /************************************************/
-static void usage(void);
+static void usage( int exitCode );
 
 /************************************************/
 /*                                              */
 /************************************************/
 
-int flag_exit = 0;
+static int flag_exit = 0;
 
 int main (int argc, char * argv[]) {
-    int testNum = 0;
     int ii;
     for( ii=0; ii<CALLBACK_TERMINATOR; ii++ ) { callbacks[ii] = NULL; }
 
     if( argc < 2 ) {
         printf("Test name is not defined\n");
-        usage();
-        exit( 1 );
+        usage( 1 );
     }
-    if( !strcmp( argv[1], "reflect" ) ) { testNum = 1; }
+    if( !strcmp( argv[1], "reflect" ) ) { reflectInit(); }
+    else if( !strcmp( argv[1], "corr" ) ) { corrInit(); }
+    else {
+        printf("Wrong test name\n");
+        usage( 2 );
+    }
     
-    switch( testNum ) {
-        case 1:
-            callbacks[CALLBACK_START] = reflectStart;
-            callbacks[CALLBACK_RANGE] = reflectRange;
-            callbacks[CALLBACK_EMERGENCY] = reflectEmergency;
-            break;
-        default:
-            printf("Wrong test name\n");
-            usage();
-            exit( 2 );
-    }
-
     seriald = serialOpen ("/dev/ttyAMA0", 115200);
 
     if( callbacks[CALLBACK_START] != NULL ) { callbacks[CALLBACK_START]( NULL ); }
@@ -54,10 +45,11 @@ int main (int argc, char * argv[]) {
     exit( 0 );
 }
 
-void usage(void) {
+void usage( int exitCode ) {
     printf("rwheels ver.0.001\n");
     printf("Usage: rwheels <testName>\n\n");
-    printf("Available tests: reflect,...\n");
+    printf("Available tests: reflect, corr,...\n");
+    exit( exitCode );
 }
 
 void rwexit() {

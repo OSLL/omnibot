@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "../../rw_control_global.h"
 #include "../../rwheels.h"
-#include "reflect.h"
+#include "corr.h"
 
 /************************************************/
 /* Global data                                  */
@@ -12,20 +12,20 @@ static int rangeHistory[RANGE_HISTORY_MAX][2];
 /************************************************/
 /* Funcion declarations                         */
 /************************************************/
-static void reflectRange( callbackDataType* data );
-static void reflectEmergency( callbackDataType* data );
-static void reflectStart( callbackDataType* data );
+void corrRange( callbackDataType* data );
+void corrEmergency( callbackDataType* data );
+void corrStart( callbackDataType* data );
 
 /************************************************/
 /*                                              */
 /************************************************/
-void reflectInit( void ) {
-    callbacks[CALLBACK_START] = reflectStart;
-    callbacks[CALLBACK_RANGE] = reflectRange;
-    callbacks[CALLBACK_EMERGENCY] = reflectEmergency;
+void corrInit ( void ) {
+    callbacks[CALLBACK_START] = corrStart;
+    callbacks[CALLBACK_RANGE] = corrRange;
+    callbacks[CALLBACK_EMERGENCY] = corrEmergency;
 }
 
-void reflectStart( callbackDataType* data ) {
+void corrStart( callbackDataType* data ) {
     int ii;
         for( ii=0; ii<RANGE_HISTORY_MAX; ii++) {rangeHistory[ii][0] = 5; rangeHistory[ii][1] = ECHO_RANGE_CM_MAX;}
         serialPuts (seriald, ";;HELLO;;");
@@ -37,9 +37,8 @@ void reflectStart( callbackDataType* data ) {
         serialPuts (seriald, "DELTA,0,0,12,0,32000;");
     }
 
-void reflectRange( callbackDataType* data ) {
+void corrRange( callbackDataType* data ) {
     static int historyHead = 0;
-    static int rangeHistory[RANGE_HISTORY_MAX][2];
     char buf[256];
     int ii;
     int minimum = 1;
@@ -59,7 +58,7 @@ void reflectRange( callbackDataType* data ) {
     }
 }
 
-void reflectEmergency(callbackDataType* data) {
+void corrEmergency(callbackDataType* data) {
     serialPuts (seriald, "MODE,0,15,0,0;");
     serialPuts (seriald, "ECHO,15,0,0,20;");
     serialPuts (seriald, "STOP,2;");
