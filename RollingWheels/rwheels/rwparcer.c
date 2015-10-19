@@ -39,7 +39,7 @@ static void calbackEmergency(void);
 /* API                                          */
 /************************************************/
 
-void printCurrentData (void) {
+void parcerCurrentData (void) {
     int ii;
     printf("move: %d,%d,%d,%d; ", controllerData.move.distance, controllerData.move.velocity, controllerData.move.course, controllerData.move.curve);
     printf("ready: %d,%d,%d; ", controllerData.ready.motion, controllerData.ready.queue, controllerData.ready.queueMax);
@@ -152,7 +152,7 @@ void eventWarning( int warning ) {
     statusDecode( warning );
 }
 
-void serialReadLine() {
+void parcerReadLine() {
     static char streamBuf[MAX_STREAM_LENGTH + 1] = {0};
     static char tempBuf[MAX_STREAM_LENGTH / 2];
     char *stream_start = streamBuf;

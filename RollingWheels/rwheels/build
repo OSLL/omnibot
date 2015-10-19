@@ -1,1 +1,1 @@
-gcc rwheels.c rwparcer.c test/reflect/reflect.c test/corr/corr.c -lwiringPi -o rwheels
+gcc rwheels.c rwparcer.c rwlib.c test/reflect/reflect.c test/corr/corr.c -lwiringPi -o rwheels

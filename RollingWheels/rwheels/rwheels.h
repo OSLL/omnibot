@@ -59,13 +59,13 @@ void rwstop(void);
 /************************************************/
 /* Parcer API                                   */
 /************************************************/
-void printCurrentData(void);
-void serialReadLine(void);
+void parcerCurrentData(void);
+void parcerReadLine(void);
 
 /************************************************/
 /* Library API                                  */
 /************************************************/
-void sleep_ms(int milliseconds);
-long long current_timestamp(void);
+void libSleepMs(int milliseconds);
+long long libCurrentTimestamp(void);
 
 #endif

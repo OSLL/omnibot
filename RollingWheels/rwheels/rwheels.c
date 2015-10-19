@@ -37,7 +37,7 @@ int main (int argc, char * argv[]) {
     if( callbacks[CALLBACK_START] != NULL ) { callbacks[CALLBACK_START]( NULL ); }
 
     while( 1 ) {
-        serialReadLine();
+        parcerReadLine();
         if( flag_exit ) break;
     }
 
