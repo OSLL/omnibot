@@ -35,10 +35,10 @@ void corrStart( callbackDataType* data ) {
         for( ii=0; ii<RANGE_HISTORY_MAX; ii++) {rangeHistory[ii] = ECHO_RANGE_CM_MAX;}
         serialPuts (seriald, ";;HELLO;;");
         serialPuts (seriald, "STOP,2;");
-        serialPuts (seriald, "MODE,1,10,20,20;"); // Use ECHO_DELAY
-        serialPuts (seriald, "ECHO,15,0,500,7;");
 //        serialPuts (seriald, "MODE,16,0,0,0;"); // Disable motors
         serialPuts (seriald, "MOVE,32000,60,45,500;");
+        serialPuts (seriald, "MODE,1,10,20,20;"); // Use ECHO_DELAY
+        serialPuts (seriald, "ECHO,15,0,500,7;");
         startTime = libCurrentTimestamp();
     }
 
@@ -63,10 +63,10 @@ void corrRange( callbackDataType* data ) {
         for( ii=0; ii<RANGE_HISTORY_MAX/2; ii++) {
             sum = 0; num = 0;
             for( jj=ii; jj<RANGE_HISTORY_MAX; jj++ ) {
-                if( rangeHistory[jj-ii] != ECHO_RANGE_CM_MAX && rangeHistory[jj] != ECHO_RANGE_CM_MAX ) {
+//                if( rangeHistory[jj-ii] != ECHO_RANGE_CM_MAX && rangeHistory[jj] != ECHO_RANGE_CM_MAX ) {
                     sum += rangeHistory[jj-ii]*rangeHistory[jj];
                     num++;
-                }
+//                }
             }
             sum /= num;
             corrFunc[ii] = sum;
@@ -93,7 +93,7 @@ void corrRange( callbackDataType* data ) {
         printf("Time per cycle = %d\n", timePerCycle);
         libSleepMs(2000);
         serialPuts(seriald, "MOVE,32000,60,45,500;");
-        libSleepMs(5*timePerCycle);
+        libSleepMs(timePerCycle);
         serialPuts(seriald, "STOP,2;");
         rwexit();
     }
