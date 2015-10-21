@@ -117,6 +117,13 @@ typedef struct stopType {
     int motion;
 } stopType;
 
+typedef struct configType {
+    int cutoff;
+    int turn;
+    int shift;
+} configType;
+
+typedef configType configEvType;
 
 typedef union paramType {
   struct{
@@ -137,6 +144,8 @@ typedef union paramType {
   readyEvType readyEv;
   errorEvType errorEv;
   stopType stop;
+  configType config;
+  configEvType configEv;
 } paramType;
 
 /****************************************************/
@@ -150,6 +159,7 @@ typedef enum modeEnum
   MODE_ECHO_3 = 0x0008,
   MODE_MOTOR_DISABLE = 0x0010,
   MODE_FW_UPGRADE_ENABLE = 0x0020,
+  MODE_CALIBRATION_ENABLE = 0x0040,
 } modeEnum;
 
 /****************************************************/
@@ -185,6 +195,7 @@ static const char KeySTATUS[] = "STATUS";
 static const char KeyHELLO[] = "HELLO";
 static const char KeyECHO[] = "ECHO";
 static const char KeyMODE[] = "MODE";
+static const char KeyCONFIG[] = "CONFIG";
 static const char KeyEMPTY[] = "";
 static const char KeyDELIMITER = ',';
 static const char KeyEOL1 = ';';
@@ -201,7 +212,7 @@ static const char KeyRANGE[] = "RANGE";
 static const int MAX_COMMAND_TIME = 30000;
 static const int MAX_COMMAND_POWER = 255;
 static const int MOVE_VELOCITY_MAX = 1000; // mm/s
-static const int MOVE_VELOCITY_MIN = 50; // mm/s
+static const int MOVE_VELOCITY_MIN = 10; // mm/s
 static const int MOVE_CURVE_MAX = 1000; // 10000/mm //TBD
 static const int MOVE_DISTANCE_MAX = 10000; // mm; MAX_COMMAND_DISTANCE shall be less than INFINITE_COMMAND/3; MAX_COMMAND_DISTANCE shall be less than MAX_INT * MAX_MOVE_VELOCITY / CONST_MS_PER_SEC
 static const int MOVE_COURSE_MAX = 360; // degrees

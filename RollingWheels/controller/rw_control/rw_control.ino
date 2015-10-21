@@ -6,13 +6,14 @@
 /* Global variables and constants                   */
 /****************************************************/
 const int DEBUG = 0;
+calibrationType calExperimental = {0, 0, 0};
 
 /****************************************************/
 /* String tables                                    */
 /****************************************************/
 STRING_TABLE_GLOBAL
 
-const char String_Hello[] STRING_MEM_MODE = "Rolling Wheels Ard. ver:0.034";
+const char String_Hello[] STRING_MEM_MODE = "Rolling Wheels Ard. ver:0.035 (timing)";
 const char* const string_table_local[] STRING_MEM_MODE = {String_Hello};
 
 /****************************************************/
@@ -96,8 +97,6 @@ void setup() {
 
   // Initialize serial:
   Serial.begin(115200);
-  Serial.setTimeout(10);
-  delay(1000);
   
   // Initialize variables, engines command queue and stop engines
   commandStop( MOTION_STOP_INIT );
@@ -203,6 +202,10 @@ Ret_Status parceCommand(char* const buf) {
   else if (! strncmp( buf, KeySTOP, strlen(KeySTOP) )) {
     if( (ret = parceParameters( buf + strlen(KeySTOP), sizeof(stopType)/sizeof(int) )) != RET_SUCCESS ) return ret;
     commandStop( bufHead->stop.motion ); 
+  }
+  else if (! strncmp( buf, KeyCONFIG, strlen(KeyCONFIG) )) {
+    if( (ret = parceParameters( buf + strlen(KeyCONFIG), sizeof(configType)/sizeof(int) )) != RET_SUCCESS ) return ret;
+    if( (ret = processConfigParameters()) != RET_SUCCESS ) return ret;
   }
   else if (! strcmp( buf, KeySTATUS )) { commandStatus(); }
   else if (! strcmp( buf, KeyHELLO )) { commandHello(); }
@@ -321,6 +324,13 @@ Ret_Status processEchoParameters () {
     return RET_SUCCESS;
 }
 
+Ret_Status processConfigParameters () {
+    calExperimental.cutoff = bufHead->config.cutoff;
+    calExperimental.turn = bufHead->config.turn;
+    calExperimental.shift = bufHead->config.shift;
+    return RET_SUCCESS;
+}
+
 /***## IMMEDIATE EXECUTION COMMANDS #############################################################################################################################################***/
 
 void commandStatus()
@@ -361,6 +371,9 @@ void commandStatus()
     Serial.print(KeyDELIMITER); Serial.print(echoConfig[ii].emergency); Serial.print(KeyDELIMITER); Serial.print(echoConfig[ii].sensors);
     Serial.print(KeyEOL1);
   }
+  Serial.print(KeyEOL2); Serial.print(KeyEOL3);
+
+  Serial.print(KeyCONFIG); Serial.print(KeyDELIMITER); Serial.print(calExperimental.cutoff); Serial.print(KeyDELIMITER); Serial.print(calExperimental.turn); Serial.print(KeyDELIMITER); Serial.print(calExperimental.shift);
   Serial.print(KeyEOL2); Serial.print(KeyEOL3);
 }
 
@@ -481,7 +494,8 @@ void processMoveParameters( moveType* mv ) {
   }
 
   angle_0_45 = abs(mv->course) % 90;
-  if(angle_0_45 > 45) angle_0_45 = 90 - angle_0_45;
+  if(angle_0_45 > 45) { angle_0_45 = 90 - angle_0_45; }
+  correction = 1+angle_0_45/80.;
   course = mv->course * CONST_PI / CONST_DEG_PER_PI;
   
   for( int jj=0; jj<CALIBRATION_MAX_CYCLES; jj++ ) {
@@ -491,17 +505,29 @@ void processMoveParameters( moveType* mv ) {
     }
     local_power = mv->velocity * CALIBRATION_MOVE_POWER_MM_S;
     if ( mv->distance < 0 ) local_power = -local_power;
+
+    if( abs(mv->curve) < 10000*2*CONST_PI/CONST_CAR_RADIUS ) {
+      drive1 = local_power*sin(course)*correction;
+      drive2 = local_power*cos(course)*correction;
+    } else {
+      drive1 = 0; drive2 = 0;
+      if( mv->curve > 0 ) { mv->curve = 10000*2*CONST_PI/CONST_CAR_RADIUS; }
+      else { mv->curve = -10000*2*CONST_PI/CONST_CAR_RADIUS; }
+    }
     rotation = local_power * CONST_CAR_RADIUS * mv->curve / 10000; // CarRadius / WayRadius
-
-    correction = 1+angle_0_45/80.;
-    drive1 = local_power*sin(course)*correction;
-    drive2 = local_power*cos(course)*correction;
   
-    lastCommand.motor[0] = calibration(drive1, calMove) + calibration(drive1+rotation, calCurve) - calibration(drive1, calCurve);
-    lastCommand.motor[1] = calibration(drive2, calMove) + calibration(drive2+rotation, calCurve) - calibration(drive2, calCurve);
-    lastCommand.motor[2] = calibration(-drive1, calMove) + calibration(-drive1+rotation, calCurve) - calibration(-drive1, calCurve);
-    lastCommand.motor[3] = calibration(-drive2, calMove) + calibration(-drive2+rotation, calCurve) - calibration(-drive2, calCurve);
-
+    if(currentMode & MODE_CALIBRATION_ENABLE) {
+        lastCommand.motor[0] = calibration(drive1+rotation, calExperimental);
+        lastCommand.motor[1] = calibration(drive2+rotation, calExperimental);
+        lastCommand.motor[2] = calibration(-drive1+rotation, calExperimental);
+        lastCommand.motor[3] = calibration(-drive2+rotation, calExperimental);
+    } else {
+        lastCommand.motor[0] = calibration(drive1, calMove) + calibration(drive1+rotation, calCurve) - calibration(drive1, calCurve);
+        lastCommand.motor[1] = calibration(drive2, calMove) + calibration(drive2+rotation, calCurve) - calibration(drive2, calCurve);
+        lastCommand.motor[2] = calibration(-drive1, calMove) + calibration(-drive1+rotation, calCurve) - calibration(-drive1, calCurve);
+        lastCommand.motor[3] = calibration(-drive2, calMove) + calibration(-drive2+rotation, calCurve) - calibration(-drive2, calCurve);
+    }
+    
     max_power = 0;
     for( int ii=1; ii<4; ii++ ) { max_power = max(max_power, abs(lastCommand.motor[ii])); }
     if( max_power > MAX_COMMAND_POWER ) {
@@ -649,8 +675,8 @@ void prepareEcho(void) {
       if( ++echoSensor == ECHO_SENSORS ) { echoSensor = 0; rotate = 1; }
       if( currentMode & (0x0001 << echoSensor) ) {
         commandEcho(echoSensor);
-        if( rotate ) { echoRepeatTime = millis() + echoRepeat; }
-        else { echoRepeatTime = millis() + echoNextSensor; }
+        if( rotate ) { echoRepeatTime += echoRepeat; }
+        else { echoRepeatTime += echoNextSensor; }
         break;
       }
     }  
@@ -737,8 +763,14 @@ ISR (PCINT2_vect)
 /****************************************************/
 
 int readStream(char *buf, int len) {
-  int bytes;
-  bytes = Serial.readBytes(buf, len);
+  int bytes = 0;
+  int symbol;
+  while( bytes < len ) {
+      symbol = Serial.read();
+      if( symbol < 0 ) break;
+      buf[bytes] = (char)symbol;
+      bytes++;
+  }
   if (bytes > 0)
   {
       buf[bytes] = 0;

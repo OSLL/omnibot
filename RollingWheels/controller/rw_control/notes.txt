@@ -1,3 +1,8 @@
+ver.35
+- added CONFIG command to change calibration parameters
+- support rotation as part of MOVE (if curve > 654)
+- fix echo timing
+
 ver.34
 - added parameter to STOP command
 - added ability to init controller by STOP,2 command
