@@ -11,7 +11,6 @@ typedef enum commandEnum {
     COMMAND_MOVE,
     COMMAND_DELTA,
     COMMAND_DELTA_INFINITE,
-    COMMAND_ROTATE,
     COMMAND_MAX,
 } commandEnum;
 
@@ -26,7 +25,7 @@ typedef struct calibrationType_t {
 } calibrationType;
 
 static calibrationType const calCurve = {20, 50, 0};
-static calibrationType const calRotation = {30, 65, 13};
+//static calibrationType const calRotation = {30, 65, 13};
 static calibrationType const calMove = {60, 200, 40};
 static const int CALIBRATION_MAX_CYCLES = 10;
 static const float CALIBRATION_ROTATE_POWER_MM_S = 0.2; // Power per mm/s for ROTATE command
@@ -70,12 +69,11 @@ Ret_Status queueCommand (void);
 Ret_Status validateDriveParameters (void);
 Ret_Status validateMoveParameters (void);
 Ret_Status validateDeltaParameters (void);
-Ret_Status validateRotateParameters (void);
 void processMoveParameters ( moveType* mv );
 void processDeltaParameters ( moveType* mv );
-void processRotateParameters (void);
 Ret_Status processModeParameters (void);
 Ret_Status processEchoParameters (void);
+Ret_Status processConfigParameters (void);
 float calibration(float power, const calibrationType cal);
 void statusDecode(Ret_Status ret);
 void prepareDrive(void);

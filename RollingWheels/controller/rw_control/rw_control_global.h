@@ -78,11 +78,6 @@ typedef struct modeEvType {
     int echoNextSensor;
 } modeEvType;
 
-typedef struct rotateType {
-    int angle;
-    int power;
-} rotateType;
-
 typedef struct echoType {
     int sensors;
     int low;
@@ -137,7 +132,6 @@ typedef union paramType {
   driveEvType driveEv;
   modeType mode;
   modeEvType modeEv;
-  rotateType rotate;
   echoType echo;
   echoEvType echoEv;
   rangeEvType rangeEv;
@@ -189,7 +183,6 @@ typedef enum parameterEnum
 static const char KeyDRIVE[] = "DRIVE";
 static const char KeyMOVE[] = "MOVE";
 static const char KeyDELTA[] = "DELTA";
-static const char KeyROTATE[] = "ROTATE";
 static const char KeySTOP[] = "STOP";
 static const char KeySTATUS[] = "STATUS";
 static const char KeyHELLO[] = "HELLO";
@@ -209,11 +202,11 @@ static const char KeyRANGE[] = "RANGE";
 /****************************************************/
 /* Vehicle limits                                   */
 /****************************************************/
-static const int MAX_COMMAND_TIME = 30000;
-static const int MAX_COMMAND_POWER = 255;
+static const int COMMAND_TIME_MAX = 30000;
+static const int COMMAND_POWER_MAX = 255;
+static const int COMMAND_POWER_MIN = 50; // TBD
 static const int MOVE_VELOCITY_MAX = 1000; // mm/s
-static const int MOVE_VELOCITY_MIN = 10; // mm/s
-static const int MOVE_CURVE_MAX = 1000; // 10000/mm //TBD
+static const int MOVE_CURVE_MAX = 654; // 10000*2*CONST_PI/CONST_CAR_RADIUS (10000/mm)
 static const int MOVE_DISTANCE_MAX = 10000; // mm; MAX_COMMAND_DISTANCE shall be less than INFINITE_COMMAND/3; MAX_COMMAND_DISTANCE shall be less than MAX_INT * MAX_MOVE_VELOCITY / CONST_MS_PER_SEC
 static const int MOVE_COURSE_MAX = 360; // degrees
 static const int ECHO_RANGE_CM_MAX = 500;
@@ -228,9 +221,9 @@ static const int ECHO_EMERGENCY_RANGE = 80; // cm
 #define CONST_PI (3.1415)
 #define CONST_DEG_PER_PI (180)
 #define CONST_CAR_RADIUS (96.)
-static const float CONST_CAR_MM_PER_DEG = CONST_CAR_RADIUS * CONST_PI / CONST_DEG_PER_PI; // 1.68
+//static const float CONST_CAR_MM_PER_DEG = CONST_CAR_RADIUS * CONST_PI / CONST_DEG_PER_PI; // 1.68
 static const int SOUND_MICROS_PER_CM = 58; // doubled because the sound forward plus back way
-static const int MIN_POWER_ROTATION = 50;
+//static const int MIN_POWER_ROTATION = 50;
 
 /****************************************************/
 /* String table                                     */
