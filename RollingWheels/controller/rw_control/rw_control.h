@@ -17,21 +17,12 @@ typedef enum commandEnum {
 /****************************************************/
 /* Calibration                                      */
 /****************************************************/
-typedef struct calibrationType_t {
-  /* memory allocation: 8 bytes per structure */
-  unsigned char cutoff;
-  unsigned char turn;
-  unsigned char shift;
-} calibrationType;
-
-static calibrationType const calCurve = {0, 0, 10};
-//static calibrationType const calCurve = {20, 50, 0};
-//static calibrationType const calRotation = {30, 65, 13};
-//static calibrationType const calMove = {60, 200, 40};
-static calibrationType const calMove = {0, 0, 40};
 static const int CALIBRATION_MAX_CYCLES = 10;
+static const unsigned char CALIBRATION_ROTATE_SHIFT = 10;
+static const unsigned char CALIBRATION_MOVE_SHIFT = 40;
 static const float CALIBRATION_ROTATE_POWER_MM_S = 0.19; // Power per mm/s for ROTATE command
 static const float CALIBRATION_MOVE_POWER_MM_S = 0.24; // Power per mm/s for MOVE command
+static const unsigned char CALIBRATION_MOVE_ANGLE = 80;
 
 /****************************************************/
 /* Limits                                           */
@@ -76,7 +67,7 @@ void processDeltaParameters ( moveType* mv );
 Ret_Status processModeParameters (void);
 Ret_Status processEchoParameters (void);
 Ret_Status processConfigParameters (void);
-float calibration(float power, const calibrationType cal);
+float calibration(float move, float rotation);
 void statusDecode(Ret_Status ret);
 void prepareDrive(void);
 void commandDrive(void);
