@@ -6,14 +6,13 @@
 /* Global variables and constants                   */
 /****************************************************/
 const int DEBUG = 0;
-calibrationType calExperimental = {0, 0, 0};
 
 /****************************************************/
 /* String tables                                    */
 /****************************************************/
 STRING_TABLE_GLOBAL
 
-const char String_Hello[] STRING_MEM_MODE = "Rolling Wheels Ard. ver:0.036 (no rotate)";
+const char String_Hello[] STRING_MEM_MODE = "Rolling Wheels Ard. ver:0.037 (calibration)";
 const char* const string_table_local[] STRING_MEM_MODE = {String_Hello};
 
 /****************************************************/
@@ -51,6 +50,12 @@ unsigned int currentMode;
 /****************************************************/
 unsigned long timer, setTime;
 int motionStatus;
+/****************************************************/
+/* Calibration                                      */
+/****************************************************/
+calibrationType calExperimental;
+float calibrationMove;
+float calibrationRotate;
 /****************************************************/
 /* Last command values                              */
 /****************************************************/
@@ -123,6 +128,9 @@ void systemInit(void) {
   int ii;
 
   currentMode = 0;
+  calExperimental = calMove;
+  calibrationMove = CALIBRATION_MOVE_POWER_MM_S;
+  calibrationRotate = CALIBRATION_ROTATE_POWER_MM_S;
   lastMove = {0,0,0,0};
   infiniteDelta = {0,0,0,0,0};
 
@@ -312,6 +320,8 @@ Ret_Status processEchoParameters () {
 }
 
 Ret_Status processConfigParameters () {
+    calibrationMove = bufHead->config.move / 100.;
+    calibrationRotate = bufHead->config.rotate / 100.;
     calExperimental.cutoff = bufHead->config.cutoff;
     calExperimental.turn = bufHead->config.turn;
     calExperimental.shift = bufHead->config.shift;
@@ -360,7 +370,8 @@ void commandStatus()
   }
   Serial.print(KeyEOL2); Serial.print(KeyEOL3);
 
-  Serial.print(KeyCONFIG); Serial.print(KeyDELIMITER); Serial.print(calExperimental.cutoff); Serial.print(KeyDELIMITER); Serial.print(calExperimental.turn); Serial.print(KeyDELIMITER); Serial.print(calExperimental.shift);
+  Serial.print(KeyCONFIG); Serial.print(KeyDELIMITER); Serial.print((int)(calibrationMove * 100)); Serial.print(KeyDELIMITER); Serial.print((int)(calibrationRotate * 100));
+  Serial.print(KeyDELIMITER); Serial.print(calExperimental.cutoff); Serial.print(KeyDELIMITER); Serial.print(calExperimental.turn); Serial.print(KeyDELIMITER); Serial.print(calExperimental.shift);
   Serial.print(KeyEOL2); Serial.print(KeyEOL3);
 }
 
@@ -440,7 +451,7 @@ Ret_Status processInfiniteDelta() {
 
 void processMoveParameters( moveType* mv ) {
   int angle_0_45, max_power, fixed_velocity;
-  float course, rotation, linear_correction1, linear_correction2, rotate_correction, drive1, drive2;
+  float course, rotation, linear_correction, linear_correction1, linear_correction2, rotate_correction, drive1, drive2;
 
   if( mv->distance == PARAMETER_KEEP ) { mv->distance = lastMove.distance; }
   if( mv->velocity == PARAMETER_KEEP ) { mv->velocity = lastMove.velocity; }
@@ -451,16 +462,17 @@ void processMoveParameters( moveType* mv ) {
   if( abs(mv->curve) != MOVE_CURVE_MAX ) {
     angle_0_45 = abs(mv->course) % 90;
     if(angle_0_45 > 45) { angle_0_45 = 90 - angle_0_45; }
-    linear_correction1 = (1 + angle_0_45/80.) * CALIBRATION_MOVE_POWER_MM_S * sin(course);
-    linear_correction2 = (1 + angle_0_45/80.) * CALIBRATION_MOVE_POWER_MM_S * cos(course);
+    linear_correction = (1 + angle_0_45/80.) * calibrationMove;
+    linear_correction1 = linear_correction * sin(course);
+    linear_correction2 = linear_correction * cos(course);
   } else {
     linear_correction1 = 0;
     linear_correction2 = 0;
   }
-  rotate_correction = CONST_CAR_RADIUS * mv->curve * CALIBRATION_MOVE_POWER_MM_S / 10000;  // CarRadius / WayRadius
+  rotate_correction = CONST_CAR_RADIUS * mv->curve * calibrationRotate / 10000;  // CarRadius / WayRadius
   if ( mv->distance < 0 ) {
     linear_correction1 = -linear_correction1;
-    linear_correction2 = -linear_correction1;
+    linear_correction2 = -linear_correction2;
     rotate_correction = -rotate_correction;
   }
   
@@ -486,7 +498,7 @@ void processMoveParameters( moveType* mv ) {
     }
     
     max_power = 0;
-    for( int ii=1; ii<4; ii++ ) { max_power = max(max_power, abs(lastCommand.motor[ii])); }
+    for( int ii=0; ii<4; ii++ ) { max_power = max(max_power, abs(lastCommand.motor[ii])); }
 
     if( DEBUG ) {
       Serial.print( "Motor: " ); Serial.print( lastCommand.motor[0] ); Serial.print( ' ' ); Serial.print( lastCommand.motor[1] ); Serial.print( ' ' ); Serial.print( lastCommand.motor[2] ); Serial.print( ' ' ); Serial.println( lastCommand.motor[3] );
@@ -494,7 +506,7 @@ void processMoveParameters( moveType* mv ) {
     }
     if( max_power < COMMAND_POWER_MIN ) {
       mv->velocity = 0;
-      for( int ii=1; ii<4; ii++ ) { lastCommand.motor[ii] = 0; }
+      for( int ii=0; ii<4; ii++ ) { lastCommand.motor[ii] = 0; }
       statusDecode(RET_WARN_MIN_POWER);
       break;
     }

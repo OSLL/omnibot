@@ -24,12 +24,14 @@ typedef struct calibrationType_t {
   unsigned char shift;
 } calibrationType;
 
-static calibrationType const calCurve = {20, 50, 0};
+static calibrationType const calCurve = {0, 0, 10};
+//static calibrationType const calCurve = {20, 50, 0};
 //static calibrationType const calRotation = {30, 65, 13};
-static calibrationType const calMove = {60, 200, 40};
+//static calibrationType const calMove = {60, 200, 40};
+static calibrationType const calMove = {0, 0, 40};
 static const int CALIBRATION_MAX_CYCLES = 10;
-static const float CALIBRATION_ROTATE_POWER_MM_S = 0.2; // Power per mm/s for ROTATE command
-static const float CALIBRATION_MOVE_POWER_MM_S = 0.256; // Power per mm/s for MOVE command
+static const float CALIBRATION_ROTATE_POWER_MM_S = 0.19; // Power per mm/s for ROTATE command
+static const float CALIBRATION_MOVE_POWER_MM_S = 0.24; // Power per mm/s for MOVE command
 
 /****************************************************/
 /* Limits                                           */

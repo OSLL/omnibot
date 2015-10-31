@@ -113,6 +113,8 @@ typedef struct stopType {
 } stopType;
 
 typedef struct configType {
+    int move;
+    int rotate;
     int cutoff;
     int turn;
     int shift;
