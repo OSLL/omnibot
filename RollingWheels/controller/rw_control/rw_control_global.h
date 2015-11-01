@@ -115,12 +115,19 @@ typedef struct stopType {
 typedef struct configType {
     int move;
     int rotate;
-    int shiftMove;
-    int shiftRotate;
-    int angle;
 } configType;
 
 typedef configType configEvType;
+
+typedef struct calibrType {
+    int moveShift;
+    int rotateShift;
+    int rotateTurn;
+    int rotateAddition;
+    int angle;
+} calibrType;
+
+typedef calibrType calibrEvType;
 
 typedef union paramType {
   struct{
@@ -142,6 +149,8 @@ typedef union paramType {
   stopType stop;
   configType config;
   configEvType configEv;
+  calibrType calibr;
+  calibrEvType calibrEv;
 } paramType;
 
 /****************************************************/
@@ -191,6 +200,7 @@ static const char KeyHELLO[] = "HELLO";
 static const char KeyECHO[] = "ECHO";
 static const char KeyMODE[] = "MODE";
 static const char KeyCONFIG[] = "CONFIG";
+static const char KeyCALIBR[] = "CALIBR";
 static const char KeyEMPTY[] = "";
 static const char KeyDELIMITER = ',';
 static const char KeyEOL1 = ';';

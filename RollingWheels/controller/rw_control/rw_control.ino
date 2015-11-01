@@ -12,7 +12,7 @@ const int DEBUG = 0;
 /****************************************************/
 STRING_TABLE_GLOBAL
 
-const char String_Hello[] STRING_MEM_MODE = "Rolling Wheels Ard. ver:0.038";
+const char String_Hello[] STRING_MEM_MODE = "Rolling Wheels Ard. ver:0.038 (calibr)";
 const char* const string_table_local[] STRING_MEM_MODE = {String_Hello};
 
 /****************************************************/
@@ -56,8 +56,10 @@ int motionStatus;
 float calibrationMove;
 float calibrationRotate;
 unsigned char calibrationAngle;
-unsigned char calibrationShiftMove;
-unsigned char calibrationShiftRotate;
+unsigned char calibrationMoveShift;
+unsigned char calibrationRotateShift;
+unsigned char calibrationRotateTurn;
+unsigned char calibrationRotateAddition;
 /****************************************************/
 /* Last command values                              */
 /****************************************************/
@@ -133,8 +135,10 @@ void systemInit(void) {
   calibrationAngle = CALIBRATION_MOVE_ANGLE;
   calibrationMove = CALIBRATION_MOVE_POWER_MM_S;
   calibrationRotate = CALIBRATION_ROTATE_POWER_MM_S;
-  calibrationShiftMove = CALIBRATION_MOVE_SHIFT;
-  calibrationShiftRotate = CALIBRATION_ROTATE_SHIFT;
+  calibrationMoveShift = CALIBRATION_MOVE_SHIFT;
+  calibrationRotateShift = CALIBRATION_ROTATE_SHIFT;
+  calibrationRotateTurn = CALIBRATION_ROTATE_TURN;
+  calibrationRotateAddition = CALIBRATION_ROTATE_ADDITION;
   lastMove = {0,0,0,0};
   infiniteDelta = {0,0,0,0,0};
 
@@ -211,6 +215,10 @@ Ret_Status parceCommand(char* const buf) {
   else if (! strncmp( buf, KeyCONFIG, strlen(KeyCONFIG) )) {
     if( (ret = parceParameters( buf + strlen(KeyCONFIG), sizeof(configType)/sizeof(int) )) != RET_SUCCESS ) return ret;
     if( (ret = processConfigParameters()) != RET_SUCCESS ) return ret;
+  }
+  else if (! strncmp( buf, KeyCALIBR, strlen(KeyCALIBR) )) {
+    if( (ret = parceParameters( buf + strlen(KeyCALIBR), sizeof(calibrType)/sizeof(int) )) != RET_SUCCESS ) return ret;
+    if( (ret = processCalibrationParameters()) != RET_SUCCESS ) return ret;
   }
   else if (! strcmp( buf, KeySTATUS )) { commandStatus(); }
   else if (! strcmp( buf, KeyHELLO )) { commandHello(); }
@@ -326,9 +334,15 @@ Ret_Status processEchoParameters () {
 Ret_Status processConfigParameters () {
     calibrationMove = bufHead->config.move / 100.;
     calibrationRotate = bufHead->config.rotate / 100.;
-    calibrationShiftMove = bufHead->config.shiftMove;
-    calibrationShiftRotate = bufHead->config.shiftRotate;
-    calibrationAngle = bufHead->config.angle;
+    return RET_SUCCESS;
+}
+
+Ret_Status processCalibrationParameters () {
+    calibrationMoveShift = bufHead->calibr.moveShift;
+    calibrationRotateShift = bufHead->calibr.rotateShift;
+    calibrationRotateTurn = bufHead->calibr.rotateTurn;
+    calibrationRotateAddition = bufHead->calibr.rotateAddition;
+    calibrationAngle = bufHead->calibr.angle;
     return RET_SUCCESS;
 }
 
@@ -375,7 +389,9 @@ void commandStatus()
   Serial.print(KeyEOL2); Serial.print(KeyEOL3);
 
   Serial.print(KeyCONFIG); Serial.print(KeyDELIMITER); Serial.print((int)(calibrationMove * 100)); Serial.print(KeyDELIMITER); Serial.print((int)(calibrationRotate * 100));
-  Serial.print(KeyDELIMITER); Serial.print(calibrationShiftMove); Serial.print(KeyDELIMITER); Serial.print(calibrationShiftRotate); Serial.print(KeyDELIMITER); Serial.print(calibrationAngle);
+  Serial.print(KeyEOL1);
+  Serial.print(KeyCALIBR); Serial.print(KeyDELIMITER); Serial.print(calibrationMoveShift); Serial.print(KeyDELIMITER); Serial.print(calibrationRotateShift);
+  Serial.print(KeyDELIMITER); Serial.print(calibrationRotateTurn); Serial.print(KeyDELIMITER); Serial.print(calibrationRotateAddition); Serial.print(KeyDELIMITER); Serial.print(calibrationAngle);
   Serial.print(KeyEOL2); Serial.print(KeyEOL3);
 }
 
@@ -538,7 +554,6 @@ void processMoveParameters( moveType* mv ) {
   if( DEBUG ) {
     Serial.print( "Move Input: " ); Serial.print( mv->distance ); Serial.print( ' ' ); Serial.print( mv->velocity ); Serial.print( ' ' ); Serial.print( mv->course ); Serial.print( ' ' ); Serial.println( mv->curve );
     Serial.print( "Move1: " ); Serial.print( drive1 ); Serial.print( ' ' ); Serial.print( drive2 ); Serial.print( ' ' ); Serial.println( rotation );
-    Serial.print( "Move2: " ); Serial.print( calibration(drive1, calibrationShiftMove) ); Serial.print( ' ' ); Serial.print( calibration(drive1+rotation, calibrationShiftRotate) ); Serial.print( ' ' ); Serial.println( calibration(drive1, calibrationShiftRotate) );
     Serial.print( "Move Output: " ); Serial.print( lastCommand.time ); Serial.print( ' ' ); Serial.print( lastCommand.motor[0] ); Serial.print( ' ' ); Serial.print( lastCommand.motor[1] ); Serial.print( ' ' ); Serial.print( lastCommand.motor[2] ); Serial.print( ' ' ); Serial.println( lastCommand.motor[3] );
   }
 }
@@ -568,14 +583,18 @@ void processDeltaParameters( moveType* dm ) {
 
 float calibration(float move, float rotation) {
   float power, sum, shift;
+  float rotation_fixed, shift_add = 0;
 
-  move *= (1-calibrationShiftMove/(float)COMMAND_POWER_MAX);
-  rotation *= (1-calibrationShiftRotate/(float)COMMAND_POWER_MAX);
-  power = move + rotation;
+  move *= (1-calibrationMoveShift/(float)COMMAND_POWER_MAX);
+  rotation_fixed = rotation * (1-calibrationRotateShift/(float)COMMAND_POWER_MAX);
+  power = move + rotation_fixed;
   if ( abs(power) < 1 ) { return 0; } // Avoid rounding error.
+  if ( abs(power) < calibrationRotateTurn ) { // Additionall correction for small ratate values
+    shift_add = (1-abs(rotation)/calibrationRotateTurn)*calibrationRotateAddition;
+  }
   
-  sum = abs(move) + abs(rotation);
-  shift = calibrationShiftMove*abs(move)/sum + calibrationShiftRotate*abs(rotation)/sum;
+  sum = abs(move) + abs(rotation_fixed);
+  shift = calibrationMoveShift*abs(move)/sum + (calibrationRotateShift+shift_add)*abs(rotation_fixed)/sum;
   if( power > 0 ) { return (power + shift); }
   else { return (power - shift); }
 }

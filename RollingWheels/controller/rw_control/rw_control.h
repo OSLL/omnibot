@@ -19,6 +19,8 @@ typedef enum commandEnum {
 /****************************************************/
 static const int CALIBRATION_MAX_CYCLES = 10;
 static const unsigned char CALIBRATION_ROTATE_SHIFT = 10;
+static const unsigned char CALIBRATION_ROTATE_TURN = 40;
+static const unsigned char CALIBRATION_ROTATE_ADDITION = 30;
 static const unsigned char CALIBRATION_MOVE_SHIFT = 40;
 static const float CALIBRATION_ROTATE_POWER_MM_S = 0.19; // Power per mm/s for ROTATE command
 static const float CALIBRATION_MOVE_POWER_MM_S = 0.24; // Power per mm/s for MOVE command
@@ -67,6 +69,7 @@ void processDeltaParameters ( moveType* mv );
 Ret_Status processModeParameters (void);
 Ret_Status processEchoParameters (void);
 Ret_Status processConfigParameters (void);
+Ret_Status processCalibrParameters (void);
 float calibration(float move, float rotation);
 void statusDecode(Ret_Status ret);
 void prepareDrive(void);
